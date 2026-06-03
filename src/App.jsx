@@ -604,6 +604,8 @@ export default function App() {
   const [showLaporan, setShowLaporan] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState({ support: "all", impl: "all", server: "all" });
 
   useEffect(() => {
     dbGetAll()
@@ -650,6 +652,38 @@ export default function App() {
     </div>
   );
 
+  const toggleFilter = (key, val) => setFilters(f => ({ ...f, [key]: f[key] === val ? "all" : val }));
+
+  const filteredProjects = projects.filter(p => {
+    // Search by client name
+    if (search && !p.client.toLowerCase().includes(search.toLowerCase())) return false;
+    // Support filter
+    if (filters.support !== "all") {
+      const d = getDaysRemaining(p.freeSupport.endDate);
+      if (filters.support === "expired" && d > 0) return false;
+      if (filters.support === "warning" && (d <= 0 || d > 90)) return false;
+      if (filters.support === "active" && d <= 90) return false;
+    }
+    // Implementation filter
+    if (filters.impl !== "all") {
+      const stages = p.implementation.stages;
+      const allDone = stages.every(s => s.status === "done");
+      const hasActive = stages.some(s => s.status === "in-progress");
+      if (filters.impl === "done" && !allDone) return false;
+      if (filters.impl === "running" && !hasActive) return false;
+      if (filters.impl === "pending" && (allDone || hasActive)) return false;
+    }
+    // Server filter
+    if (filters.server !== "all") {
+      const hasServer = p.server && p.server.active;
+      const svrExpiring = hasServer && p.server.endDate && getDaysRemaining(p.server.endDate) <= 30;
+      if (filters.server === "active" && !hasServer) return false;
+      if (filters.server === "none" && hasServer) return false;
+      if (filters.server === "expiring" && !svrExpiring) return false;
+    }
+    return true;
+  });
+
   const stats = [
     { label:"Total Proyek", val:projects.length, color:"#38bdf8", icon:"📁" },
     { label:"Perlu Perpanjang", val:projects.filter(p=>getDaysRemaining(p.freeSupport.endDate)<=90).length, color:"#f59e0b", icon:"🔔" },
@@ -676,6 +710,91 @@ export default function App() {
             <button onClick={()=>setShowAdd(true)} style={{ ...BTN, padding:"12px 24px", fontSize:15 }}>+ Proyek Baru</button>
           </div>
         </div>
+
+        {/* Search & Filter Bar */}
+        <div style={{ marginBottom: 20, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+          {/* Search */}
+          <div style={{ position: "relative", flex: "1", minWidth: 200 }}>
+            <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "#475569" }}>🔍</span>
+            <input
+              type="text"
+              placeholder="Cari nama klien..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ width: "100%", background: "#0c1628", border: "1px solid #1e293b", borderRadius: 10, padding: "9px 12px 9px 36px", color: "#e2e8f0", fontSize: 14, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+            />
+            {search && (
+              <span onClick={() => setSearch("")} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", cursor: "pointer", color: "#475569", fontSize: 16 }}>✕</span>
+            )}
+          </div>
+
+          {/* Filter chips */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {/* Support filters */}
+            {[
+              ["support","active","Support Aktif","#10b981","#052e16"],
+              ["support","warning","Support ⚠️","#f59e0b","#451a03"],
+              ["support","expired","Support Expired","#ef4444","#450a0a"],
+            ].map(([key, val, label, color, bg]) => (
+              <button key={key+val} onClick={() => toggleFilter(key, val)} style={{
+                padding: "6px 14px", borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                border: `1px solid ${filters[key]===val ? color : "#1e293b"}`,
+                background: filters[key]===val ? bg : "transparent",
+                color: filters[key]===val ? color : "#475569",
+                transition: "all 0.15s",
+              }}>{label}</button>
+            ))}
+
+            <div style={{ width: 1, background: "#1e293b", margin: "0 2px" }} />
+
+            {/* Impl filters */}
+            {[
+              ["impl","running","Berjalan","#f59e0b","#451a03"],
+              ["impl","done","Selesai","#10b981","#052e16"],
+              ["impl","pending","Belum Mulai","#64748b","#0f172a"],
+            ].map(([key, val, label, color, bg]) => (
+              <button key={key+val} onClick={() => toggleFilter(key, val)} style={{
+                padding: "6px 14px", borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                border: `1px solid ${filters[key]===val ? color : "#1e293b"}`,
+                background: filters[key]===val ? bg : "transparent",
+                color: filters[key]===val ? color : "#475569",
+                transition: "all 0.15s",
+              }}>{label}</button>
+            ))}
+
+            <div style={{ width: 1, background: "#1e293b", margin: "0 2px" }} />
+
+            {/* Server filters */}
+            {[
+              ["server","active","🖥 Pakai Server","#38bdf8","#0c2a3f"],
+              ["server","none","🖥 No Server","#64748b","#0f172a"],
+              ["server","expiring","🖥 Server Mau Habis","#ef4444","#450a0a"],
+            ].map(([key, val, label, color, bg]) => (
+              <button key={key+val} onClick={() => toggleFilter(key, val)} style={{
+                padding: "6px 14px", borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                border: `1px solid ${filters[key]===val ? color : "#1e293b"}`,
+                background: filters[key]===val ? bg : "transparent",
+                color: filters[key]===val ? color : "#475569",
+                transition: "all 0.15s",
+              }}>{label}</button>
+            ))}
+
+            {/* Reset all */}
+            {(search || Object.values(filters).some(v => v !== "all")) && (
+              <button onClick={() => { setSearch(""); setFilters({ support:"all", impl:"all", server:"all" }); }} style={{
+                padding: "6px 14px", borderRadius: 999, fontSize: 12, cursor: "pointer",
+                border: "1px solid #334155", background: "transparent", color: "#64748b",
+              }}>✕ Reset</button>
+            )}
+          </div>
+        </div>
+
+        {/* Result count */}
+        {(search || Object.values(filters).some(v => v !== "all")) && (
+          <div style={{ fontSize: 12, color: "#475569", marginBottom: 16 }}>
+            Menampilkan <span style={{ color: "#38bdf8", fontWeight: 600 }}>{filteredProjects.length}</span> dari {projects.length} proyek
+          </div>
+        )}
 
         {expiringSoon.length > 0 && (
           <div style={{ background:"#1c0800", border:"1px solid #f59e0b44", borderRadius:12, padding:"14px 18px", marginBottom:12, display:"flex", alignItems:"center", gap:12 }}>
@@ -711,10 +830,10 @@ export default function App() {
         </div>
 
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(420px,1fr))", gap:16 }}>
-          {projects.map(proj=><ProjectCard key={proj.id} project={proj} onSelect={setSelected} />)}
+          {filteredProjects.map(proj=><ProjectCard key={proj.id} project={proj} onSelect={setSelected} />)}
         </div>
 
-        {projects.length===0 && (
+        {filteredProjects.length===0 && (
           <div style={{ textAlign:"center", padding:"60px 20px", color:"#334155" }}>
             <div style={{ fontSize:48 }}>📂</div>
             <div style={{ fontSize:18, marginTop:12 }}>Belum ada proyek</div>
