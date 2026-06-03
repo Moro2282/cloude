@@ -287,7 +287,7 @@ function Modal({ title, onClose, children, wide }) {
 const inp = { width: "100%", background: "#0c1628", border: "1px solid #1e293b", borderRadius: 8, padding: "8px 10px", color: "#e2e8f0", fontSize: 14, marginTop: 4, outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
 const miniCard = { background: "#0a1525", border: "1px solid #1a2744", borderRadius: 10, padding: 14 };
 
-function DetailView({ project, onClose, onUpdate }) {
+function DetailView({ project, onClose, onUpdate, onDelete }) {
   const [p, setP] = useState(JSON.parse(JSON.stringify(project)));
   const [activeTab, setActiveTab] = useState("overview");
   const [editStage, setEditStage] = useState(null);
@@ -331,15 +331,21 @@ function DetailView({ project, onClose, onUpdate }) {
 
   return (
     <Modal title={p.name} onClose={onClose}>
-      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-        {tabs.map(t => (
-          <button key={t} onClick={() => setActiveTab(t)} style={{
-            padding: "6px 14px", borderRadius: 999, border: "1px solid",
-            borderColor: activeTab === t ? "#38bdf8" : "#1e293b",
-            background: activeTab === t ? "#0c4a6e" : "transparent",
-            color: activeTab === t ? "#38bdf8" : "#64748b", fontSize: 12, cursor: "pointer",
-          }}>{tabLabel[t]}</button>
-        ))}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {tabs.map(t => (
+            <button key={t} onClick={() => setActiveTab(t)} style={{
+              padding: "6px 14px", borderRadius: 999, border: "1px solid",
+              borderColor: activeTab === t ? "#38bdf8" : "#1e293b",
+              background: activeTab === t ? "#0c4a6e" : "transparent",
+              color: activeTab === t ? "#38bdf8" : "#64748b", fontSize: 12, cursor: "pointer",
+            }}>{tabLabel[t]}</button>
+          ))}
+        </div>
+        <button onClick={() => { if(window.confirm("Hapus proyek ini?")) onDelete(); }} style={{
+          padding: "6px 14px", borderRadius: 8, border: "1px solid #7f1d1d",
+          background: "#1c0a0a", color: "#ef4444", cursor: "pointer", fontSize: 12, fontWeight: 600,
+        }}>🗑 Hapus Proyek</button>
       </div>
 
       {activeTab === "overview" && (
@@ -628,16 +634,16 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = JSON.parse(localStorage.getItem(STORAGE_KEY));
-        setData(res ? res : defaultData);
-      } catch { setData(defaultData); }
-      setLoading(false);
-    })();
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      setData(raw ? JSON.parse(raw) : defaultData);
+    } catch {
+      setData(defaultData);
+    }
+    setLoading(false);
   }, []);
 
-  const persist = async (newData) => {
+  const persist = (newData) => {
     setData(newData);
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(newData)); } catch { }
   };
@@ -719,12 +725,12 @@ export default function App() {
       </div>
 
       {selectedProject && (
-        <>
-          <DetailView project={selectedProject} onClose={() => setSelected(null)} onUpdate={updateProject} />
-          <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 1001 }}>
-            <button onClick={() => deleteProject(selectedProject.id)} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #7f1d1d", background: "#1c0a0a", color: "#ef4444", cursor: "pointer", fontSize: 12 }}>🗑 Hapus Proyek</button>
-          </div>
-        </>
+        <DetailView
+          project={selectedProject}
+          onClose={() => setSelected(null)}
+          onUpdate={updateProject}
+          onDelete={() => deleteProject(selectedProject.id)}
+        />
       )}
 
       {showAdd && <AddProjectModal onClose={() => setShowAdd(false)} onAdd={addProject} />}
