@@ -1,4 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
+import LoginPage from "./LoginPage";
+import UserManager from "./UserManager";
+import { getCurrentUser, signOut, handleOAuthCallback, refreshSession } from "./auth";
 import * as XLSX from "xlsx";
 
 const SUPABASE_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
@@ -205,7 +208,7 @@ function ProjectCard({ project, onSelect }) {
 
 // ─── DETAIL VIEW ──────────────────────────────────────────────────────────────
 
-function DetailView({ project, onClose, onSave, onDelete }) {
+function DetailView({ project, onClose, onSave, onDelete, canEdit = true, canDelete = true }) {
   const [p, setP] = useState(() => JSON.parse(JSON.stringify(project)));
   const [activeTab, setActiveTab] = useState("overview");
   const [editStage, setEditStage] = useState(null);
@@ -266,6 +269,7 @@ function DetailView({ project, onClose, onSave, onDelete }) {
   const tabLabel = { overview: "Overview", training: "Jam Training", faktur: "Desain Faktur", implementasi: "Implementasi", support: "Free Support", server: "Server" };
 
   const SaveBtn = () => {
+    if (!canEdit) return <div style={{ fontSize:12, color:"#475569", padding:"10px 0" }}>🔒 Anda hanya bisa melihat data</div>;
     const states = {
       idle: { bg: "#1d4ed8", label: "Simpan Perubahan" },
       saving: { bg: "#1e3a5f", label: "Menyimpan..." },
@@ -598,6 +602,9 @@ function AddProjectModal({ onClose, onAdd }) {
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [showUserMgr, setShowUserMgr] = useState(false);
   const [projects, setProjects] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -608,10 +615,52 @@ export default function App() {
   const [filters, setFilters] = useState({ support: "all", impl: "all", server: "all" });
 
   useEffect(() => {
-    dbGetAll()
-      .then(data => { setProjects(data); setLoading(false); })
-      .catch(e => { setError(e.message); setLoading(false); });
+    async function init() {
+      // Handle OAuth callback (Google login redirect)
+      const oauthSession = await handleOAuthCallback();
+      // Get current user
+      let user = await getCurrentUser();
+      if (!user && oauthSession) {
+        await new Promise(r => setTimeout(r, 800));
+        user = await getCurrentUser();
+      }
+      // Try refresh if token expired
+      if (!user) {
+        const refreshed = await refreshSession();
+        if (refreshed) user = await getCurrentUser();
+      }
+      setCurrentUser(user);
+      setAuthLoading(false);
+      if (user) {
+        dbGetAll()
+          .then(data => { setProjects(data); setLoading(false); })
+          .catch(e => { setError(e.message); setLoading(false); });
+      }
+    }
+    init();
   }, []);
+
+  const handleLogin = async () => {
+    const user = await getCurrentUser();
+    setCurrentUser(user);
+    if (user) {
+      dbGetAll()
+        .then(data => { setProjects(data); setLoading(false); })
+        .catch(e => { setError(e.message); setLoading(false); });
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut();
+    setCurrentUser(null);
+    setProjects([]);
+  };
+
+  // Role helpers
+  const isAdmin = currentUser?.profile?.role === "admin";
+  const isEditor = currentUser?.profile?.role === "editor" || isAdmin;
+  const canEdit = isEditor;
+  const canDelete = isAdmin;
 
   const handleSaveProject = useCallback(async (updated) => {
     await dbUpsert(updated);
@@ -632,6 +681,18 @@ export default function App() {
 
   const selectedProject = projects.find(p => p.id === selected);
   const expiringSoon = projects.filter(p => { const d=getDaysRemaining(p.freeSupport.endDate); return d>=0&&d<=30; });
+
+  // Auth loading
+  if (authLoading) return (
+    <div style={{ minHeight:"100vh", background:"#060d1a", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
+      <div style={{ width:40, height:40, border:"3px solid #1e293b", borderTop:"3px solid #38bdf8", borderRadius:"50%", animation:"spin 1s linear infinite" }} />
+      <div style={{ color:"#38bdf8", fontSize:16 }}>Memeriksa sesi...</div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+
+  // Not logged in
+  if (!currentUser) return <LoginPage onLogin={handleLogin} />;
 
   if (loading) return (
     <div style={{ minHeight:"100vh", background:"#060d1a", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
@@ -705,9 +766,27 @@ export default function App() {
               <span style={{ color:"#10b981", marginLeft:4 }}>● Terhubung ke Supabase</span>
             </div>
           </div>
-          <div style={{ display:"flex", gap:10 }}>
-            <button onClick={()=>setShowLaporan(true)} style={{ padding:"12px 20px", borderRadius:8, border:"1px solid #059669", background:"#052e16", color:"#10b981", cursor:"pointer", fontWeight:600, fontSize:14 }}>📊 Laporan Excel</button>
-            <button onClick={()=>setShowAdd(true)} style={{ ...BTN, padding:"12px 24px", fontSize:15 }}>+ Proyek Baru</button>
+          <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
+            <button onClick={()=>setShowLaporan(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #059669", background:"#052e16", color:"#10b981", cursor:"pointer", fontWeight:600, fontSize:13 }}>📊 Laporan</button>
+            {canEdit && <button onClick={()=>setShowAdd(true)} style={{ ...BTN, padding:"10px 20px", fontSize:14 }}>+ Proyek Baru</button>}
+            {isAdmin && (
+              <button onClick={()=>setShowUserMgr(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #7c3aed", background:"#1e1040", color:"#a78bfa", cursor:"pointer", fontWeight:600, fontSize:13 }}>👥 Users</button>
+            )}
+            {/* User menu */}
+            <div style={{ display:"flex", alignItems:"center", gap:10, padding:"6px 14px", background:"#0c1628", border:"1px solid #1a2744", borderRadius:10 }}>
+              <div style={{ width:30, height:30, borderRadius:"50%", background:"linear-gradient(135deg,#1d4ed8,#7c3aed)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", flexShrink:0 }}>
+                {(currentUser?.profile?.full_name || currentUser?.email || "?").charAt(0).toUpperCase()}
+              </div>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:"#e2e8f0", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:120 }}>
+                  {currentUser?.profile?.full_name || currentUser?.email}
+                </div>
+                <div style={{ fontSize:10, color: currentUser?.profile?.role==="admin"?"#a78bfa":currentUser?.profile?.role==="editor"?"#38bdf8":"#64748b", fontWeight:600, textTransform:"uppercase", letterSpacing:0.5 }}>
+                  {currentUser?.profile?.role || "viewer"}
+                </div>
+              </div>
+              <button onClick={handleLogout} title="Logout" style={{ background:"none", border:"none", color:"#475569", cursor:"pointer", fontSize:16, padding:"2px 4px", flexShrink:0 }}>⏏</button>
+            </div>
           </div>
         </div>
 
@@ -843,10 +922,11 @@ export default function App() {
       </div>
 
       {selectedProject && (
-        <DetailView project={selectedProject} onClose={()=>setSelected(null)} onSave={handleSaveProject} onDelete={()=>handleDeleteProject(selectedProject.id)} />
+        <DetailView project={selectedProject} onClose={()=>setSelected(null)} onSave={canEdit ? handleSaveProject : null} onDelete={canDelete ? ()=>handleDeleteProject(selectedProject.id) : null} canEdit={canEdit} canDelete={canDelete} />
       )}
-      {showAdd && <AddProjectModal onClose={()=>setShowAdd(false)} onAdd={handleAddProject} />}
+      {showAdd && canEdit && <AddProjectModal onClose={()=>setShowAdd(false)} onAdd={handleAddProject} />}
       {showLaporan && <LaporanModal projects={projects} onClose={()=>setShowLaporan(false)} />}
+      {showUserMgr && isAdmin && <UserManager currentUser={currentUser} onClose={()=>setShowUserMgr(false)} />}
     </div>
   );
 }
