@@ -28,6 +28,10 @@ function toRow(p) {
     support_end_date: p.freeSupport.endDate,
     support_renewals: p.freeSupport.renewals,
     stages: p.implementation.stages,
+    server_active: p.server.active,
+    server_start_date: p.server.startDate,
+    server_end_date: p.server.endDate,
+    server_notes: p.server.notes,
   };
 }
 
@@ -46,6 +50,12 @@ function fromRow(r) {
       renewals: r.support_renewals || 0,
     },
     implementation: { stages: r.stages || [] },
+    server: {
+      active: r.server_active || false,
+      startDate: r.server_start_date || "",
+      endDate: r.server_end_date || "",
+      notes: r.server_notes || "",
+    },
   };
 }
 
@@ -182,7 +192,13 @@ function ProjectCard({ project, onSelect }) {
           </div>
         </div>
       </div>
-      <div style={{ marginTop: 10, fontSize: 11, color: "#334155", textAlign: "right" }}>Klik untuk detail & edit →</div>
+      <div style={{ marginTop: 12, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        {project.server && project.server.active ? (() => {
+          const sd = getDaysRemaining(project.server.endDate);
+          return <span style={{ fontSize:11, padding:"3px 10px", borderRadius:999, fontWeight:700, background: sd<=30?"#450a0a":sd<=90?"#451a03":"#0a1525", color: sd<=30?"#ef4444":sd<=90?"#f59e0b":"#38bdf8", border:"1px solid", borderColor: sd<=30?"#ef444433":sd<=90?"#f59e0b33":"#38bdf833" }}>🖥 Server: {sd<=0?"Expired":`${sd}h lagi`}</span>;
+        })() : <span style={{ fontSize:11, color:"#1e293b" }}>🖥 No Server</span>}
+        <span style={{ fontSize: 11, color: "#334155" }}>Klik untuk detail & edit →</span>
+      </div>
     </div>
   );
 }
@@ -246,8 +262,8 @@ function DetailView({ project, onClose, onSave, onDelete }) {
   };
 
   const daysLeft = getDaysRemaining(p.freeSupport.endDate);
-  const tabs = ["overview", "training", "faktur", "implementasi", "support"];
-  const tabLabel = { overview: "Overview", training: "Jam Training", faktur: "Desain Faktur", implementasi: "Implementasi", support: "Free Support" };
+  const tabs = ["overview", "training", "faktur", "implementasi", "support", "server"];
+  const tabLabel = { overview: "Overview", training: "Jam Training", faktur: "Desain Faktur", implementasi: "Implementasi", support: "Free Support", server: "Server" };
 
   const SaveBtn = () => {
     const states = {
@@ -385,6 +401,82 @@ function DetailView({ project, onClose, onSave, onDelete }) {
           </div>
         </div>
       )}
+
+      {activeTab === "server" && (() => {
+        const svrDays = p.server.active && p.server.endDate ? getDaysRemaining(p.server.endDate) : null;
+        const renewServer = async () => {
+          const updated = JSON.parse(JSON.stringify(p));
+          const end = new Date(updated.server.endDate || new Date());
+          end.setFullYear(end.getFullYear() + 1);
+          updated.server.endDate = end.toISOString().split("T")[0];
+          if (!updated.server.startDate) updated.server.startDate = new Date().toISOString().split("T")[0];
+          setP(updated);
+          await handleSave(updated);
+        };
+        return (
+          <div>
+            {/* Toggle aktif/tidak */}
+            <div style={{ ...MINI, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#e2e8f0" }}>Gunakan Server Kami</div>
+                <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>Aktifkan jika klien berlangganan server</div>
+              </div>
+              <div onClick={() => updateField("server.active", !p.server.active)} style={{
+                width: 52, height: 28, borderRadius: 999, cursor: "pointer", transition: "background 0.2s",
+                background: p.server.active ? "#10b981" : "#1e293b", position: "relative", flexShrink: 0,
+              }}>
+                <div style={{ position: "absolute", top: 3, left: p.server.active ? 26 : 3, width: 22, height: 22, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+              </div>
+            </div>
+
+            {p.server.active ? (
+              <>
+                {/* Status banner */}
+                {p.server.endDate && (
+                  <div style={{ ...MINI, background: svrDays<=0?"#1c0a0a":svrDays<=30?"#1c0f00":svrDays<=90?"#1c1200":"#0a1a0a", borderColor: svrDays<=0?"#ef4444":svrDays<=30?"#ef4444":svrDays<=90?"#f59e0b":"#10b981", borderStyle:"solid", borderWidth:1, marginBottom:16 }}>
+                    <div style={{ display:"flex", alignItems:"baseline", gap:8 }}>
+                      <div style={{ fontSize: 38, fontWeight: 900, color: svrDays<=0?"#ef4444":svrDays<=30?"#ef4444":svrDays<=90?"#f59e0b":"#10b981" }}>
+                        {svrDays<=0?"Expired":`${svrDays} hari`}
+                      </div>
+                      {svrDays>0 && <div style={{ fontSize:14, color:"#64748b" }}>tersisa</div>}
+                    </div>
+                    <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
+                      {svrDays<=0 ? "Langganan server sudah berakhir — perlu diperpanjang!" : svrDays<=30 ? "⚠️ Segera perpanjang sebelum expired!" : svrDays<=90 ? "Langganan akan habis dalam waktu dekat" : "Langganan server aktif"}
+                    </div>
+                    <div style={{ marginTop: 8, fontSize: 12, color: "#475569" }}>Mulai: {p.server.startDate||"-"} · Berakhir: {p.server.endDate||"-"}</div>
+                  </div>
+                )}
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                  <div style={MINI}>
+                    <label style={{ fontSize: 11, color: "#64748b" }}>Tanggal Mulai Berlangganan</label>
+                    <input type="date" style={INP} value={p.server.startDate} onChange={e => updateField("server.startDate", e.target.value)} />
+                  </div>
+                  <div style={MINI}>
+                    <label style={{ fontSize: 11, color: "#64748b" }}>Tanggal Jatuh Tempo</label>
+                    <input type="date" style={INP} value={p.server.endDate} onChange={e => updateField("server.endDate", e.target.value)} />
+                  </div>
+                </div>
+                <div style={{ ...MINI, marginBottom: 16 }}>
+                  <label style={{ fontSize: 11, color: "#64748b", display:"block", marginBottom: 4 }}>Catatan / Spesifikasi Server</label>
+                  <textarea style={{ ...INP, resize:"vertical" }} rows={3} value={p.server.notes} onChange={e => updateField("server.notes", e.target.value)} placeholder="Contoh: VPS 4 Core 8GB RAM, Ubuntu 22.04..." />
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <SaveBtn />
+                  <button onClick={renewServer} style={{ padding:"10px 20px", borderRadius:8, border:"1px solid #10b981", background:"#052e16", color:"#10b981", cursor:"pointer", fontWeight:600, fontSize:14 }}>🔄 Perpanjang +1 Tahun</button>
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign:"center", padding:"40px 20px", color:"#334155" }}>
+                <div style={{ fontSize: 40 }}>🖥️</div>
+                <div style={{ fontSize: 15, marginTop: 12, color: "#475569" }}>Klien ini tidak menggunakan server kami</div>
+                <div style={{ fontSize: 12, marginTop: 6 }}>Aktifkan toggle di atas jika klien berlangganan server</div>
+                <button onClick={() => { updateField("server.active", true); }} style={{ ...BTN, marginTop: 16 }}>Aktifkan Server</button>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </Modal>
   );
 }
@@ -472,6 +564,7 @@ function AddProjectModal({ onClose, onAdd }) {
       id:"proj-"+Date.now(), name:form.name, client:form.client, clientEmail:form.clientEmail, startDate:form.startDate,
       trainingHours:{total:+form.trainTotal,used:0}, invoiceDesigns:{total:+form.invTotal,used:0},
       freeSupport:{startDate:form.startDate,endDate:end.toISOString().split("T")[0],renewals:0},
+      server:{active:false,startDate:"",endDate:"",notes:""},
       implementation:{stages:[
         {id:1,name:"Analisis Kebutuhan",status:"pending",notes:"",date:""},
         {id:2,name:"Setup & Instalasi",status:"pending",notes:"",date:""},
@@ -560,8 +653,8 @@ export default function App() {
   const stats = [
     { label:"Total Proyek", val:projects.length, color:"#38bdf8", icon:"📁" },
     { label:"Perlu Perpanjang", val:projects.filter(p=>getDaysRemaining(p.freeSupport.endDate)<=90).length, color:"#f59e0b", icon:"🔔" },
-    { label:"Go Live", val:projects.filter(p=>p.implementation.stages.find(s=>s.name==="Go Live")?.status==="done").length, color:"#10b981", icon:"🚀" },
-    { label:"Berjalan", val:projects.filter(p=>p.implementation.stages.some(s=>s.status==="in-progress")).length, color:"#a78bfa", icon:"⚡" },
+    { label:"Server Aktif", val:projects.filter(p=>p.server&&p.server.active).length, color:"#10b981", icon:"🖥️" },
+    { label:"Server Mau Habis", val:projects.filter(p=>p.server&&p.server.active&&p.server.endDate&&getDaysRemaining(p.server.endDate)<=30).length, color:"#ef4444", icon:"⚠️" },
   ];
 
   return (
@@ -585,7 +678,7 @@ export default function App() {
         </div>
 
         {expiringSoon.length > 0 && (
-          <div style={{ background:"#1c0800", border:"1px solid #f59e0b44", borderRadius:12, padding:"14px 18px", marginBottom:24, display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ background:"#1c0800", border:"1px solid #f59e0b44", borderRadius:12, padding:"14px 18px", marginBottom:12, display:"flex", alignItems:"center", gap:12 }}>
             <span style={{ fontSize:20 }}>⚠️</span>
             <div>
               <div style={{ fontWeight:700, color:"#f59e0b", fontSize:14 }}>Free Support Hampir Berakhir</div>
@@ -593,6 +686,19 @@ export default function App() {
             </div>
           </div>
         )}
+        {(() => {
+          const svrExpiring = projects.filter(p => p.server && p.server.active && p.server.endDate && getDaysRemaining(p.server.endDate) <= 30);
+          return svrExpiring.length > 0 && (
+            <div style={{ background:"#0a0a1c", border:"1px solid #38bdf844", borderRadius:12, padding:"14px 18px", marginBottom:12, display:"flex", alignItems:"center", gap:12 }}>
+              <span style={{ fontSize:20 }}>🖥️</span>
+              <div>
+                <div style={{ fontWeight:700, color:"#38bdf8", fontSize:14 }}>Langganan Server Hampir Berakhir</div>
+                <div style={{ fontSize:12, color:"#475569" }}>{svrExpiring.map(p=>`${p.name} (${getDaysRemaining(p.server.endDate) <= 0 ? "Expired" : getDaysRemaining(p.server.endDate)+" hari lagi"})`).join(" · ")}</div>
+              </div>
+            </div>
+          );
+        })()}
+        <div style={{ marginBottom: 12 }} />
 
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))", gap:12, marginBottom:28 }}>
           {stats.map(s=>(
