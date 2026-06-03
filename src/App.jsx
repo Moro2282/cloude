@@ -1,74 +1,77 @@
 import { useState, useEffect, useCallback } from "react";
 import * as XLSX from "xlsx";
 
-const STORAGE_KEY = "pm-dashboard-data";
-
-const defaultData = {
-  projects: [
-    {
-      id: "proj-1",
-      name: "PT Maju Bersama",
-      client: "Budi Santoso",
-      clientEmail: "budi@majubersama.com",
-      startDate: "2025-01-15",
-      trainingHours: { total: 40, used: 28 },
-      invoiceDesigns: { total: 10, used: 7 },
-      freeSupport: { startDate: "2025-01-15", endDate: "2026-01-15", renewals: 0 },
-      implementation: {
-        stages: [
-          { id: 1, name: "Analisis Kebutuhan", status: "done", notes: "Selesai 20 Jan 2025.", date: "2025-01-20" },
-          { id: 2, name: "Setup & Instalasi", status: "done", notes: "Server production sudah dikonfigurasi.", date: "2025-02-01" },
-          { id: 3, name: "Training Tim", status: "done", notes: "Training modul 1-3 selesai.", date: "2025-02-15" },
-          { id: 4, name: "Uji Coba (UAT)", status: "in-progress", notes: "Sedang pengujian modul keuangan.", date: "" },
-          { id: 5, name: "Go Live", status: "pending", notes: "", date: "" },
-          { id: 6, name: "Post-Implementation Review", status: "pending", notes: "", date: "" },
-        ],
-      },
-    },
-    {
-      id: "proj-2",
-      name: "CV Sinar Abadi",
-      client: "Dewi Rahayu",
-      clientEmail: "dewi@sinarabadi.co.id",
-      startDate: "2025-03-01",
-      trainingHours: { total: 20, used: 5 },
-      invoiceDesigns: { total: 5, used: 1 },
-      freeSupport: { startDate: "2025-03-01", endDate: "2026-03-01", renewals: 0 },
-      implementation: {
-        stages: [
-          { id: 1, name: "Analisis Kebutuhan", status: "done", notes: "Done.", date: "2025-03-10" },
-          { id: 2, name: "Setup & Instalasi", status: "in-progress", notes: "Proses instalasi di server client.", date: "" },
-          { id: 3, name: "Training Tim", status: "pending", notes: "", date: "" },
-          { id: 4, name: "Uji Coba (UAT)", status: "pending", notes: "", date: "" },
-          { id: 5, name: "Go Live", status: "pending", notes: "", date: "" },
-          { id: 6, name: "Post-Implementation Review", status: "pending", notes: "", date: "" },
-        ],
-      },
-    },
-  ],
+const SUPABASE_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
+const API = `${SUPABASE_URL}/rest/v1/projects`;
+const HEADERS = {
+  "Content-Type": "application/json",
+  "apikey": SUPABASE_KEY,
+  "Authorization": `Bearer ${SUPABASE_KEY}`,
+  "Prefer": "return=representation",
 };
 
+// ─── SUPABASE HELPERS ─────────────────────────────────────────────────────────
+
+function toRow(p) {
+  return {
+    id: p.id,
+    name: p.name,
+    client: p.client,
+    client_email: p.clientEmail,
+    start_date: p.startDate,
+    training_hours_total: p.trainingHours.total,
+    training_hours_used: p.trainingHours.used,
+    invoice_designs_total: p.invoiceDesigns.total,
+    invoice_designs_used: p.invoiceDesigns.used,
+    support_start_date: p.freeSupport.startDate,
+    support_end_date: p.freeSupport.endDate,
+    support_renewals: p.freeSupport.renewals,
+    stages: p.implementation.stages,
+  };
+}
+
+function fromRow(r) {
+  return {
+    id: r.id,
+    name: r.name,
+    client: r.client,
+    clientEmail: r.client_email || "",
+    startDate: r.start_date || "",
+    trainingHours: { total: r.training_hours_total, used: r.training_hours_used },
+    invoiceDesigns: { total: r.invoice_designs_total, used: r.invoice_designs_used },
+    freeSupport: {
+      startDate: r.support_start_date || "",
+      endDate: r.support_end_date || "",
+      renewals: r.support_renewals || 0,
+    },
+    implementation: { stages: r.stages || [] },
+  };
+}
+
+async function dbGetAll() {
+  const res = await fetch(`${API}?order=created_at.asc`, { headers: HEADERS });
+  if (!res.ok) throw new Error(await res.text());
+  const rows = await res.json();
+  return rows.map(fromRow);
+}
+
+async function dbUpsert(project) {
+  const res = await fetch(`${API}?on_conflict=id`, {
+    method: "POST",
+    headers: { ...HEADERS, "Prefer": "resolution=merge-duplicates,return=representation" },
+    body: JSON.stringify(toRow(project)),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function dbDelete(id) {
+  const res = await fetch(`${API}?id=eq.${id}`, { method: "DELETE", headers: HEADERS });
+  if (!res.ok) throw new Error(await res.text());
+}
+
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
-
-function saveToStorage(data) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    return true;
-  } catch (e) {
-    console.error("Storage error:", e);
-    return false;
-  }
-}
-
-function loadFromStorage() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch (e) {
-    return null;
-  }
-}
 
 function getDaysRemaining(endDate) {
   return Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24));
@@ -112,13 +115,9 @@ function StageIndicator({ stages }) {
       <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 8 }}>
         {stages.map((s, i) => (
           <div key={s.id} style={{ display: "flex", alignItems: "center" }}>
-            <div title={s.name} style={{
-              width: 26, height: 26, borderRadius: "50%", background: statusColor[s.status],
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 11, color: "#fff", fontWeight: 800, flexShrink: 0,
-              border: s.status === "in-progress" ? "2px solid #fcd34d" : "2px solid transparent",
-              boxShadow: s.status === "in-progress" ? "0 0 10px #f59e0b66" : "none",
-            }}>{s.status === "done" ? "✓" : "·"}</div>
+            <div title={s.name} style={{ width: 26, height: 26, borderRadius: "50%", background: statusColor[s.status], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff", fontWeight: 800, flexShrink: 0, border: s.status === "in-progress" ? "2px solid #fcd34d" : "2px solid transparent", boxShadow: s.status === "in-progress" ? "0 0 10px #f59e0b66" : "none" }}>
+              {s.status === "done" ? "✓" : "·"}
+            </div>
             {i < stages.length - 1 && <div style={{ width: 12, height: 2, background: s.status === "done" ? "#10b981" : "#0f172a", flexShrink: 0 }} />}
           </div>
         ))}
@@ -137,7 +136,7 @@ function Modal({ title, onClose, children, wide }) {
       <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 16, padding: 28, maxWidth: wide ? 900 : 700, width: "100%", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <div style={{ fontSize: 18, fontWeight: 700, color: "#f1f5f9" }}>{title}</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "#64748b", fontSize: 22, cursor: "pointer", lineHeight: 1 }}>✕</button>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#64748b", fontSize: 22, cursor: "pointer" }}>✕</button>
         </div>
         {children}
       </div>
@@ -158,8 +157,7 @@ function ProjectCard({ project, onSelect }) {
   return (
     <div onClick={() => onSelect(project.id)} style={{ background: "#0c1628", border: "1px solid #1a2744", borderRadius: 16, padding: 20, cursor: "pointer", transition: "border-color 0.2s, transform 0.15s" }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = "#2563eb"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = "#1a2744"; e.currentTarget.style.transform = "translateY(0)"; }}
-    >
+      onMouseLeave={e => { e.currentTarget.style.borderColor = "#1a2744"; e.currentTarget.style.transform = "translateY(0)"; }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
         <div>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#f1f5f9", marginBottom: 2 }}>{project.name}</div>
@@ -197,13 +195,9 @@ function DetailView({ project, onClose, onSave, onDelete }) {
   const [editStage, setEditStage] = useState(null);
   const [stageNote, setStageNote] = useState("");
   const [stageDate, setStageDate] = useState("");
-  const [saved, setSaved] = useState(false);
+  const [saveState, setSaveState] = useState("idle"); // idle | saving | saved | error
 
-  // Reset local state when project changes
-  useEffect(() => {
-    setP(JSON.parse(JSON.stringify(project)));
-    setSaved(false);
-  }, [project.id]);
+  useEffect(() => { setP(JSON.parse(JSON.stringify(project))); setSaveState("idle"); }, [project.id]);
 
   const updateField = (path, value) => {
     const parts = path.split(".");
@@ -214,75 +208,73 @@ function DetailView({ project, onClose, onSave, onDelete }) {
       obj[parts[parts.length - 1]] = value;
       return updated;
     });
-    setSaved(false);
+    setSaveState("idle");
   };
 
-  const handleSave = () => {
-    onSave(p);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleSave = async (dataToSave) => {
+    const target = dataToSave || p;
+    setSaveState("saving");
+    try {
+      await onSave(target);
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2000);
+    } catch {
+      setSaveState("error");
+      setTimeout(() => setSaveState("idle"), 3000);
+    }
   };
 
-  const openStageEdit = (stage) => {
-    setEditStage(stage.id);
-    setStageNote(stage.notes);
-    setStageDate(stage.date);
-  };
+  const openStageEdit = (stage) => { setEditStage(stage.id); setStageNote(stage.notes); setStageDate(stage.date); };
 
-  const saveStage = (stageId, newStatus) => {
-    setP(prev => {
-      const updated = JSON.parse(JSON.stringify(prev));
-      const s = updated.implementation.stages.find(x => x.id === stageId);
-      if (s) { s.notes = stageNote; s.date = stageDate; if (newStatus) s.status = newStatus; }
-      onSave(updated);
-      return updated;
-    });
+  const saveStage = async (stageId, newStatus) => {
+    const updated = JSON.parse(JSON.stringify(p));
+    const s = updated.implementation.stages.find(x => x.id === stageId);
+    if (s) { s.notes = stageNote; s.date = stageDate; if (newStatus) s.status = newStatus; }
+    setP(updated);
     setEditStage(null);
+    await handleSave(updated);
   };
 
-  const renewSupport = () => {
-    setP(prev => {
-      const updated = JSON.parse(JSON.stringify(prev));
-      const end = new Date(updated.freeSupport.endDate);
-      end.setFullYear(end.getFullYear() + 1);
-      updated.freeSupport.endDate = end.toISOString().split("T")[0];
-      updated.freeSupport.renewals += 1;
-      onSave(updated);
-      return updated;
-    });
+  const renewSupport = async () => {
+    const updated = JSON.parse(JSON.stringify(p));
+    const end = new Date(updated.freeSupport.endDate);
+    end.setFullYear(end.getFullYear() + 1);
+    updated.freeSupport.endDate = end.toISOString().split("T")[0];
+    updated.freeSupport.renewals += 1;
+    setP(updated);
+    await handleSave(updated);
   };
 
   const daysLeft = getDaysRemaining(p.freeSupport.endDate);
   const tabs = ["overview", "training", "faktur", "implementasi", "support"];
   const tabLabel = { overview: "Overview", training: "Jam Training", faktur: "Desain Faktur", implementasi: "Implementasi", support: "Free Support" };
 
-  const SaveBtn = () => (
-    <button onClick={handleSave} style={{ ...BTN, background: saved ? "#065f46" : "#1d4ed8", minWidth: 140 }}>
-      {saved ? "✓ Tersimpan!" : "Simpan Perubahan"}
-    </button>
-  );
+  const SaveBtn = () => {
+    const states = {
+      idle: { bg: "#1d4ed8", label: "Simpan Perubahan" },
+      saving: { bg: "#1e3a5f", label: "Menyimpan..." },
+      saved: { bg: "#065f46", label: "✓ Tersimpan!" },
+      error: { bg: "#7f1d1d", label: "✗ Gagal, coba lagi" },
+    };
+    const s = states[saveState];
+    return (
+      <button onClick={() => handleSave()} disabled={saveState === "saving"} style={{ ...BTN, background: s.bg, minWidth: 160, transition: "background 0.3s" }}>
+        {s.label}
+      </button>
+    );
+  };
 
   return (
     <Modal title={p.name} onClose={onClose}>
-      {/* Tabs + Delete */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 8 }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {tabs.map(t => (
-            <button key={t} onClick={() => setActiveTab(t)} style={{
-              padding: "6px 14px", borderRadius: 999, border: "1px solid",
-              borderColor: activeTab === t ? "#38bdf8" : "#1e293b",
-              background: activeTab === t ? "#0c4a6e" : "transparent",
-              color: activeTab === t ? "#38bdf8" : "#64748b", fontSize: 12, cursor: "pointer",
-            }}>{tabLabel[t]}</button>
+            <button key={t} onClick={() => setActiveTab(t)} style={{ padding: "6px 14px", borderRadius: 999, border: "1px solid", borderColor: activeTab === t ? "#38bdf8" : "#1e293b", background: activeTab === t ? "#0c4a6e" : "transparent", color: activeTab === t ? "#38bdf8" : "#64748b", fontSize: 12, cursor: "pointer" }}>{tabLabel[t]}</button>
           ))}
         </div>
-        <button onClick={() => { if (window.confirm(`Hapus proyek "${p.name}"?`)) onDelete(); }} style={{
-          padding: "6px 14px", borderRadius: 8, border: "1px solid #7f1d1d",
-          background: "#1c0a0a", color: "#ef4444", cursor: "pointer", fontSize: 12, fontWeight: 600,
-        }}>🗑 Hapus</button>
+        <button onClick={() => { if (window.confirm(`Hapus proyek "${p.name}"?`)) onDelete(); }} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #7f1d1d", background: "#1c0a0a", color: "#ef4444", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🗑 Hapus</button>
       </div>
 
-      {/* OVERVIEW */}
       {activeTab === "overview" && (
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
@@ -297,24 +289,17 @@ function DetailView({ project, onClose, onSave, onDelete }) {
         </div>
       )}
 
-      {/* TRAINING */}
       {activeTab === "training" && (
         <div>
           <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 12 }}>Atur kuota dan pemakaian jam training.</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-            <div style={MINI}>
-              <label style={{ fontSize: 11, color: "#64748b" }}>Total Jam (Kontrak)</label>
-              <input type="number" style={INP} value={p.trainingHours.total} onChange={e => updateField("trainingHours.total", +e.target.value)} />
-            </div>
-            <div style={MINI}>
-              <label style={{ fontSize: 11, color: "#64748b" }}>Jam Terpakai</label>
-              <input type="number" style={INP} value={p.trainingHours.used} onChange={e => updateField("trainingHours.used", +e.target.value)} />
-            </div>
+            <div style={MINI}><label style={{ fontSize: 11, color: "#64748b" }}>Total Jam (Kontrak)</label><input type="number" style={INP} value={p.trainingHours.total} onChange={e => updateField("trainingHours.total", +e.target.value)} /></div>
+            <div style={MINI}><label style={{ fontSize: 11, color: "#64748b" }}>Jam Terpakai</label><input type="number" style={INP} value={p.trainingHours.used} onChange={e => updateField("trainingHours.used", +e.target.value)} /></div>
           </div>
           <div style={{ ...MINI, marginBottom: 16 }}>
             <ProgressBar value={p.trainingHours.used} max={p.trainingHours.total} />
             <div style={{ marginTop: 12, display: "flex", gap: 20 }}>
-              {[[p.trainingHours.total - p.trainingHours.used,"#38bdf8","jam tersisa"],[p.trainingHours.used,"#64748b","jam terpakai"],[p.trainingHours.total,"#94a3b8","total jam"]].map(([v,c,l]) => (
+              {[[p.trainingHours.total-p.trainingHours.used,"#38bdf8","jam tersisa"],[p.trainingHours.used,"#64748b","jam terpakai"],[p.trainingHours.total,"#94a3b8","total jam"]].map(([v,c,l]) => (
                 <div key={l}><div style={{ fontSize: 26, fontWeight: 800, color: c }}>{v}</div><div style={{ fontSize: 11, color: "#475569" }}>{l}</div></div>
               ))}
             </div>
@@ -323,24 +308,17 @@ function DetailView({ project, onClose, onSave, onDelete }) {
         </div>
       )}
 
-      {/* FAKTUR */}
       {activeTab === "faktur" && (
         <div>
           <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 12 }}>Pantau sisa kuota desain faktur.</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-            <div style={MINI}>
-              <label style={{ fontSize: 11, color: "#64748b" }}>Total Desain (Kontrak)</label>
-              <input type="number" style={INP} value={p.invoiceDesigns.total} onChange={e => updateField("invoiceDesigns.total", +e.target.value)} />
-            </div>
-            <div style={MINI}>
-              <label style={{ fontSize: 11, color: "#64748b" }}>Desain Terpakai</label>
-              <input type="number" style={INP} value={p.invoiceDesigns.used} onChange={e => updateField("invoiceDesigns.used", +e.target.value)} />
-            </div>
+            <div style={MINI}><label style={{ fontSize: 11, color: "#64748b" }}>Total Desain (Kontrak)</label><input type="number" style={INP} value={p.invoiceDesigns.total} onChange={e => updateField("invoiceDesigns.total", +e.target.value)} /></div>
+            <div style={MINI}><label style={{ fontSize: 11, color: "#64748b" }}>Desain Terpakai</label><input type="number" style={INP} value={p.invoiceDesigns.used} onChange={e => updateField("invoiceDesigns.used", +e.target.value)} /></div>
           </div>
           <div style={{ ...MINI, marginBottom: 16 }}>
             <ProgressBar value={p.invoiceDesigns.used} max={p.invoiceDesigns.total} color="#a78bfa" />
             <div style={{ marginTop: 12, display: "flex", gap: 20 }}>
-              {[[p.invoiceDesigns.total - p.invoiceDesigns.used,"#a78bfa","desain tersisa"],[p.invoiceDesigns.used,"#64748b","sudah digunakan"]].map(([v,c,l]) => (
+              {[[p.invoiceDesigns.total-p.invoiceDesigns.used,"#a78bfa","desain tersisa"],[p.invoiceDesigns.used,"#64748b","sudah digunakan"]].map(([v,c,l]) => (
                 <div key={l}><div style={{ fontSize: 26, fontWeight: 800, color: c }}>{v}</div><div style={{ fontSize: 11, color: "#475569" }}>{l}</div></div>
               ))}
             </div>
@@ -349,17 +327,16 @@ function DetailView({ project, onClose, onSave, onDelete }) {
         </div>
       )}
 
-      {/* IMPLEMENTASI */}
       {activeTab === "implementasi" && (
         <div>
           <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 16 }}>Klik Edit untuk ubah status, catatan, dan tanggal.</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {p.implementation.stages.map(stage => (
-              <div key={stage.id} style={{ ...MINI, borderLeft: `3px solid ${stage.status === "done" ? "#10b981" : stage.status === "in-progress" ? "#f59e0b" : "#334155"}` }}>
+              <div key={stage.id} style={{ ...MINI, borderLeft: `3px solid ${stage.status==="done"?"#10b981":stage.status==="in-progress"?"#f59e0b":"#334155"}` }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: stage.status === "done" ? "#10b981" : stage.status === "in-progress" ? "#f59e0b" : "#475569", marginRight: 8 }}>
-                      {stage.status === "done" ? "✓ Selesai" : stage.status === "in-progress" ? "● Berjalan" : "○ Pending"}
+                    <span style={{ fontSize: 12, fontWeight: 600, color: stage.status==="done"?"#10b981":stage.status==="in-progress"?"#f59e0b":"#475569", marginRight: 8 }}>
+                      {stage.status==="done"?"✓ Selesai":stage.status==="in-progress"?"● Berjalan":"○ Pending"}
                     </span>
                     <span style={{ fontSize: 14, color: "#e2e8f0", fontWeight: 600 }}>{stage.name}</span>
                     {stage.date && <span style={{ fontSize: 11, color: "#475569", marginLeft: 8 }}>{stage.date}</span>}
@@ -391,25 +368,16 @@ function DetailView({ project, onClose, onSave, onDelete }) {
         </div>
       )}
 
-      {/* SUPPORT */}
       {activeTab === "support" && (
         <div>
-          <div style={{ ...MINI, background: daysLeft <= 0 ? "#1c0a0a" : daysLeft <= 30 ? "#1c0f00" : "#0a1a0a", borderColor: daysLeft <= 0 ? "#ef4444" : daysLeft <= 30 ? "#f59e0b" : "#10b981", borderStyle: "solid", borderWidth: 1, marginBottom: 16 }}>
-            <div style={{ fontSize: 38, fontWeight: 900, color: daysLeft <= 0 ? "#ef4444" : daysLeft <= 30 ? "#f59e0b" : "#10b981" }}>
-              {daysLeft <= 0 ? "Expired" : `${daysLeft} hari`}
-            </div>
-            <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>{daysLeft <= 0 ? "Free support sudah berakhir" : "tersisa sebelum free support berakhir"}</div>
+          <div style={{ ...MINI, background: daysLeft<=0?"#1c0a0a":daysLeft<=30?"#1c0f00":"#0a1a0a", borderColor: daysLeft<=0?"#ef4444":daysLeft<=30?"#f59e0b":"#10b981", borderStyle:"solid", borderWidth:1, marginBottom:16 }}>
+            <div style={{ fontSize: 38, fontWeight: 900, color: daysLeft<=0?"#ef4444":daysLeft<=30?"#f59e0b":"#10b981" }}>{daysLeft<=0?"Expired":`${daysLeft} hari`}</div>
+            <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>{daysLeft<=0?"Free support sudah berakhir":"tersisa sebelum free support berakhir"}</div>
             <div style={{ marginTop: 10, fontSize: 12, color: "#475569" }}>Mulai: {p.freeSupport.startDate} · Berakhir: {p.freeSupport.endDate} · Diperpanjang: {p.freeSupport.renewals}x</div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-            <div style={MINI}>
-              <label style={{ fontSize: 11, color: "#64748b" }}>Tanggal Mulai Support</label>
-              <input type="date" style={INP} value={p.freeSupport.startDate} onChange={e => updateField("freeSupport.startDate", e.target.value)} />
-            </div>
-            <div style={MINI}>
-              <label style={{ fontSize: 11, color: "#64748b" }}>Tanggal Berakhir Support</label>
-              <input type="date" style={INP} value={p.freeSupport.endDate} onChange={e => updateField("freeSupport.endDate", e.target.value)} />
-            </div>
+            <div style={MINI}><label style={{ fontSize: 11, color: "#64748b" }}>Tanggal Mulai Support</label><input type="date" style={INP} value={p.freeSupport.startDate} onChange={e => updateField("freeSupport.startDate", e.target.value)} /></div>
+            <div style={MINI}><label style={{ fontSize: 11, color: "#64748b" }}>Tanggal Berakhir Support</label><input type="date" style={INP} value={p.freeSupport.endDate} onChange={e => updateField("freeSupport.endDate", e.target.value)} /></div>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             <SaveBtn />
@@ -423,57 +391,27 @@ function DetailView({ project, onClose, onSave, onDelete }) {
 
 // ─── EXCEL EXPORT ─────────────────────────────────────────────────────────────
 
-function getStatusLabel(s) { return s === "done" ? "Selesai" : s === "in-progress" ? "Berjalan" : "Pending"; }
-function getSupportStatus(d) { return d <= 0 ? "Expired" : d <= 30 ? "Kritis (≤30 hari)" : d <= 90 ? "Perhatian (≤90 hari)" : "Aktif"; }
+function getStatusLabel(s) { return s==="done"?"Selesai":s==="in-progress"?"Berjalan":"Pending"; }
+function getSupportStatus(d) { return d<=0?"Expired":d<=30?"Kritis (≤30 hari)":d<=90?"Perhatian (≤90 hari)":"Aktif"; }
 
 function exportToExcel(projects) {
   const wb = XLSX.utils.book_new();
   const today = new Date().toLocaleDateString("id-ID");
-
   const ws1 = XLSX.utils.aoa_to_sheet([
-    ["LAPORAN RINGKASAN PROYEK"], [`Digenerate: ${today}`], [],
+    ["LAPORAN RINGKASAN PROYEK"],[`Digenerate: ${today}`],[],
     ["No","Nama Proyek","Klien","Email","Tgl Mulai","Jam Total","Jam Pakai","Jam Sisa","% Training","Desain Total","Desain Pakai","Desain Sisa","% Faktur","Support Mulai","Support Berakhir","Sisa Hari","Status Support","Perpanjangan","Tahap Selesai","Total Tahap","% Impl","Status Aktif"],
-    ...projects.map((p, i) => {
-      const d = getDaysRemaining(p.freeSupport.endDate);
-      const done = p.implementation.stages.filter(s => s.status === "done").length;
-      const total = p.implementation.stages.length;
-      const active = p.implementation.stages.find(s => s.status === "in-progress");
-      return [i+1, p.name, p.client, p.clientEmail, p.startDate,
-        p.trainingHours.total, p.trainingHours.used, p.trainingHours.total-p.trainingHours.used, `${Math.round(p.trainingHours.used/p.trainingHours.total*100)}%`,
-        p.invoiceDesigns.total, p.invoiceDesigns.used, p.invoiceDesigns.total-p.invoiceDesigns.used, `${Math.round(p.invoiceDesigns.used/p.invoiceDesigns.total*100)}%`,
-        p.freeSupport.startDate, p.freeSupport.endDate, d, getSupportStatus(d), p.freeSupport.renewals,
-        done, total, `${Math.round(done/total*100)}%`, active ? active.name : (done===total ? "Selesai Semua" : "-")];
-    })
+    ...projects.map((p,i)=>{const d=getDaysRemaining(p.freeSupport.endDate);const done=p.implementation.stages.filter(s=>s.status==="done").length;const total=p.implementation.stages.length;const active=p.implementation.stages.find(s=>s.status==="in-progress");return[i+1,p.name,p.client,p.clientEmail,p.startDate,p.trainingHours.total,p.trainingHours.used,p.trainingHours.total-p.trainingHours.used,`${Math.round(p.trainingHours.used/p.trainingHours.total*100)}%`,p.invoiceDesigns.total,p.invoiceDesigns.used,p.invoiceDesigns.total-p.invoiceDesigns.used,`${Math.round(p.invoiceDesigns.used/p.invoiceDesigns.total*100)}%`,p.freeSupport.startDate,p.freeSupport.endDate,d,getSupportStatus(d),p.freeSupport.renewals,done,total,`${Math.round(done/total*100)}%`,active?active.name:(done===total?"Selesai Semua":"-")];})
   ]);
-  ws1["!cols"] = [{wch:4},{wch:22},{wch:18},{wch:28},{wch:12},{wch:10},{wch:10},{wch:9},{wch:10},{wch:12},{wch:12},{wch:12},{wch:10},{wch:13},{wch:15},{wch:10},{wch:20},{wch:13},{wch:12},{wch:11},{wch:9},{wch:20}];
-  XLSX.utils.book_append_sheet(wb, ws1, "Ringkasan Proyek");
-
-  const implRows = [["DETAIL IMPLEMENTASI"],[`Digenerate: ${today}`],[],["Nama Proyek","Klien","No","Tahap","Status","Tanggal","Catatan"]];
-  projects.forEach(p => { p.implementation.stages.forEach(s => implRows.push([p.name,p.client,s.id,s.name,getStatusLabel(s.status),s.date||"-",s.notes||"-"])); implRows.push([]); });
-  const ws2 = XLSX.utils.aoa_to_sheet(implRows);
-  ws2["!cols"] = [{wch:22},{wch:18},{wch:6},{wch:28},{wch:12},{wch:14},{wch:50}];
-  XLSX.utils.book_append_sheet(wb, ws2, "Detail Implementasi");
-
-  const ws3 = XLSX.utils.aoa_to_sheet([
-    ["LAPORAN FREE SUPPORT"],[`Digenerate: ${today}`],[],
-    ["Nama Proyek","Klien","Email","Tgl Mulai","Tgl Berakhir","Sisa Hari","Status","Perpanjangan"],
-    ...projects.map(p => { const d=getDaysRemaining(p.freeSupport.endDate); return [p.name,p.client,p.clientEmail,p.freeSupport.startDate,p.freeSupport.endDate,d,getSupportStatus(d),p.freeSupport.renewals]; })
-  ]);
-  ws3["!cols"] = [{wch:22},{wch:18},{wch:28},{wch:13},{wch:14},{wch:10},{wch:20},{wch:13}];
-  XLSX.utils.book_append_sheet(wb, ws3, "Free Support");
-
-  const tT=projects.reduce((a,p)=>a+p.trainingHours.total,0), tU=projects.reduce((a,p)=>a+p.trainingHours.used,0);
-  const iT=projects.reduce((a,p)=>a+p.invoiceDesigns.total,0), iU=projects.reduce((a,p)=>a+p.invoiceDesigns.used,0);
-  const ws4 = XLSX.utils.aoa_to_sheet([
-    ["LAPORAN KUOTA LAYANAN"],[`Digenerate: ${today}`],[],
-    ["Nama Proyek","Klien","Jam Total","Jam Pakai","Jam Sisa","% Training","Desain Total","Desain Pakai","Desain Sisa","% Faktur"],
-    ...projects.map(p => [p.name,p.client,p.trainingHours.total,p.trainingHours.used,p.trainingHours.total-p.trainingHours.used,`${(p.trainingHours.used/p.trainingHours.total*100).toFixed(1)}%`,p.invoiceDesigns.total,p.invoiceDesigns.used,p.invoiceDesigns.total-p.invoiceDesigns.used,`${(p.invoiceDesigns.used/p.invoiceDesigns.total*100).toFixed(1)}%`]),
-    [],["TOTAL",`${projects.length} Proyek`,tT,tU,tT-tU,`${(tU/tT*100).toFixed(1)}%`,iT,iU,iT-iU,`${(iU/iT*100).toFixed(1)}%`]
-  ]);
-  ws4["!cols"] = [{wch:22},{wch:18},{wch:12},{wch:12},{wch:10},{wch:10},{wch:12},{wch:12},{wch:10},{wch:10}];
-  XLSX.utils.book_append_sheet(wb, ws4, "Kuota Layanan");
-
-  XLSX.writeFile(wb, `Laporan_Proyek_${today.replace(/\//g,"-")}.xlsx`);
+  XLSX.utils.book_append_sheet(wb,ws1,"Ringkasan Proyek");
+  const implRows=[["DETAIL IMPLEMENTASI"],[`Digenerate: ${today}`],[],["Nama Proyek","Klien","No","Tahap","Status","Tanggal","Catatan"]];
+  projects.forEach(p=>{p.implementation.stages.forEach(s=>implRows.push([p.name,p.client,s.id,s.name,getStatusLabel(s.status),s.date||"-",s.notes||"-"]));implRows.push([]);});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(implRows),"Detail Implementasi");
+  const ws3=XLSX.utils.aoa_to_sheet([["LAPORAN FREE SUPPORT"],[`Digenerate: ${today}`],[],["Nama Proyek","Klien","Email","Tgl Mulai","Tgl Berakhir","Sisa Hari","Status","Perpanjangan"],...projects.map(p=>{const d=getDaysRemaining(p.freeSupport.endDate);return[p.name,p.client,p.clientEmail,p.freeSupport.startDate,p.freeSupport.endDate,d,getSupportStatus(d),p.freeSupport.renewals];})]);
+  XLSX.utils.book_append_sheet(wb,ws3,"Free Support");
+  const tT=projects.reduce((a,p)=>a+p.trainingHours.total,0),tU=projects.reduce((a,p)=>a+p.trainingHours.used,0),iT=projects.reduce((a,p)=>a+p.invoiceDesigns.total,0),iU=projects.reduce((a,p)=>a+p.invoiceDesigns.used,0);
+  const ws4=XLSX.utils.aoa_to_sheet([["LAPORAN KUOTA LAYANAN"],[`Digenerate: ${today}`],[],["Nama Proyek","Klien","Jam Total","Jam Pakai","Jam Sisa","% Training","Desain Total","Desain Pakai","Desain Sisa","% Faktur"],...projects.map(p=>[p.name,p.client,p.trainingHours.total,p.trainingHours.used,p.trainingHours.total-p.trainingHours.used,`${(p.trainingHours.used/p.trainingHours.total*100).toFixed(1)}%`,p.invoiceDesigns.total,p.invoiceDesigns.used,p.invoiceDesigns.total-p.invoiceDesigns.used,`${(p.invoiceDesigns.used/p.invoiceDesigns.total*100).toFixed(1)}%`]),[],["TOTAL",`${projects.length} Proyek`,tT,tU,tT-tU,`${(tU/tT*100).toFixed(1)}%`,iT,iU,iT-iU,`${(iU/iT*100).toFixed(1)}%`]]);
+  XLSX.utils.book_append_sheet(wb,ws4,"Kuota Layanan");
+  XLSX.writeFile(wb,`Laporan_Proyek_${today.replace(/\//g,"-")}.xlsx`);
 }
 
 // ─── LAPORAN MODAL ────────────────────────────────────────────────────────────
@@ -482,60 +420,38 @@ function LaporanModal({ projects, onClose }) {
   const [selected, setSelected] = useState(projects.map(p => p.id));
   const toggle = id => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const filtered = projects.filter(p => selected.includes(p.id));
-
   return (
     <Modal title="📊 Modul Laporan & Export Excel" onClose={onClose} wide>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 20 }}>
-        {[
-          ["Proyek Dipilih", filtered.length, "#38bdf8", ""],
-          ["Total Jam Training", filtered.reduce((a,p)=>a+p.trainingHours.total,0), "#10b981", " jam"],
-          ["Total Desain Faktur", filtered.reduce((a,p)=>a+p.invoiceDesigns.total,0), "#a78bfa", " desain"],
-          ["Support Kritis", filtered.filter(p=>getDaysRemaining(p.freeSupport.endDate)<=30).length, "#ef4444", ""],
-        ].map(([l,v,c,u]) => (
-          <div key={l} style={{ ...MINI, padding: "12px 14px" }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: c }}>{v}<span style={{ fontSize: 11, color: "#475569", fontWeight: 400 }}>{u}</span></div>
-            <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>{l}</div>
+        {[["Proyek Dipilih",filtered.length,"#38bdf8",""],["Total Jam Training",filtered.reduce((a,p)=>a+p.trainingHours.total,0),"#10b981"," jam"],["Total Desain Faktur",filtered.reduce((a,p)=>a+p.invoiceDesigns.total,0),"#a78bfa"," desain"],["Support Kritis",filtered.filter(p=>getDaysRemaining(p.freeSupport.endDate)<=30).length,"#ef4444",""]].map(([l,v,c,u])=>(
+          <div key={l} style={{ ...MINI, padding:"12px 14px" }}>
+            <div style={{ fontSize:22, fontWeight:800, color:c }}>{v}<span style={{ fontSize:11, color:"#475569", fontWeight:400 }}>{u}</span></div>
+            <div style={{ fontSize:11, color:"#475569", marginTop:2 }}>{l}</div>
           </div>
         ))}
       </div>
-
       <div style={{ marginBottom: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#94a3b8" }}>Pilih Proyek</div>
-          <button onClick={() => setSelected(selected.length === projects.length ? [] : projects.map(p => p.id))} style={{ fontSize: 11, padding: "4px 12px", borderRadius: 6, border: "1px solid #334155", background: "transparent", color: "#64748b", cursor: "pointer" }}>
-            {selected.length === projects.length ? "Batalkan Semua" : "Pilih Semua"}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+          <div style={{ fontSize:13, fontWeight:600, color:"#94a3b8" }}>Pilih Proyek</div>
+          <button onClick={()=>setSelected(selected.length===projects.length?[]:projects.map(p=>p.id))} style={{ fontSize:11, padding:"4px 12px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>
+            {selected.length===projects.length?"Batalkan Semua":"Pilih Semua"}
           </button>
         </div>
-        {projects.map(p => {
-          const isChecked = selected.includes(p.id);
-          const days = getDaysRemaining(p.freeSupport.endDate);
-          return (
-            <div key={p.id} onClick={() => toggle(p.id)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", marginBottom: 8, background: isChecked ? "#0d1f38" : "#0a1525", border: `1px solid ${isChecked ? "#1d4ed8" : "#1a2744"}`, borderRadius: 10, cursor: "pointer" }}>
-              <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${isChecked ? "#3b82f6" : "#334155"}`, background: isChecked ? "#1d4ed8" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{isChecked ? "✓" : ""}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, color: "#e2e8f0", fontSize: 14 }}>{p.name}</div>
-                <div style={{ fontSize: 11, color: "#475569" }}>{p.client} · {p.clientEmail}</div>
+        {projects.map(p=>{
+          const isChecked=selected.includes(p.id);
+          return(
+            <div key={p.id} onClick={()=>toggle(p.id)} style={{ display:"flex", alignItems:"center", gap:14, padding:"12px 16px", marginBottom:8, background:isChecked?"#0d1f38":"#0a1525", border:`1px solid ${isChecked?"#1d4ed8":"#1a2744"}`, borderRadius:10, cursor:"pointer" }}>
+              <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${isChecked?"#3b82f6":"#334155"}`, background:isChecked?"#1d4ed8":"transparent", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:11, fontWeight:700, flexShrink:0 }}>{isChecked?"✓":""}</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:600, color:"#e2e8f0", fontSize:14 }}>{p.name}</div>
+                <div style={{ fontSize:11, color:"#475569" }}>{p.client}</div>
               </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                <span style={badgeStyle("#0c1628","#38bdf8")}>{p.trainingHours.total-p.trainingHours.used} jam sisa</span>
-                <span style={badgeStyle("#0c1628","#a78bfa")}>{p.invoiceDesigns.total-p.invoiceDesigns.used} desain sisa</span>
-                <SupportBadge days={days} />
-              </div>
+              <SupportBadge days={getDaysRemaining(p.freeSupport.endDate)} />
             </div>
           );
         })}
       </div>
-
-      <div style={{ background: "#0a1525", border: "1px solid #1a2744", borderRadius: 10, padding: 14, marginBottom: 20 }}>
-        <div style={{ fontSize: 11, color: "#475569", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>4 Sheet yang digenerate</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-          {[["📋","Ringkasan Proyek"],["🔧","Detail Implementasi"],["🛡️","Free Support"],["📦","Kuota Layanan"]].map(([icon,title]) => (
-            <div key={title} style={{ fontSize: 12, color: "#64748b" }}>{icon} {title}</div>
-          ))}
-        </div>
-      </div>
-
-      <button onClick={() => filtered.length > 0 && exportToExcel(filtered)} disabled={filtered.length === 0} style={{ ...BTN, background: filtered.length === 0 ? "#1e293b" : "#059669", color: filtered.length === 0 ? "#334155" : "#fff", cursor: filtered.length === 0 ? "not-allowed" : "pointer", fontSize: 15 }}>
+      <button onClick={()=>filtered.length>0&&exportToExcel(filtered)} disabled={filtered.length===0} style={{ ...BTN, background:filtered.length===0?"#1e293b":"#059669", color:filtered.length===0?"#334155":"#fff", cursor:filtered.length===0?"not-allowed":"pointer", fontSize:15 }}>
         ⬇️ Export Excel ({filtered.length} proyek)
       </button>
     </Modal>
@@ -545,17 +461,18 @@ function LaporanModal({ projects, onClose }) {
 // ─── ADD PROJECT ──────────────────────────────────────────────────────────────
 
 function AddProjectModal({ onClose, onAdd }) {
-  const [form, setForm] = useState({ name: "", client: "", clientEmail: "", startDate: new Date().toISOString().split("T")[0], trainTotal: 40, invTotal: 10 });
-  const f = (k, v) => setForm(x => ({ ...x, [k]: v }));
-  const submit = () => {
-    if (!form.name || !form.client) { alert("Nama proyek dan nama klien wajib diisi!"); return; }
-    const end = new Date(form.startDate);
-    end.setFullYear(end.getFullYear() + 1);
-    onAdd({
-      id: "proj-" + Date.now(), name: form.name, client: form.client, clientEmail: form.clientEmail, startDate: form.startDate,
-      trainingHours: { total: +form.trainTotal, used: 0 }, invoiceDesigns: { total: +form.invTotal, used: 0 },
-      freeSupport: { startDate: form.startDate, endDate: end.toISOString().split("T")[0], renewals: 0 },
-      implementation: { stages: [
+  const [form, setForm] = useState({ name:"", client:"", clientEmail:"", startDate:new Date().toISOString().split("T")[0], trainTotal:40, invTotal:10 });
+  const [loading, setLoading] = useState(false);
+  const f = (k,v) => setForm(x=>({...x,[k]:v}));
+  const submit = async () => {
+    if (!form.name||!form.client) { alert("Nama proyek dan nama klien wajib diisi!"); return; }
+    setLoading(true);
+    const end = new Date(form.startDate); end.setFullYear(end.getFullYear()+1);
+    const newProj = {
+      id:"proj-"+Date.now(), name:form.name, client:form.client, clientEmail:form.clientEmail, startDate:form.startDate,
+      trainingHours:{total:+form.trainTotal,used:0}, invoiceDesigns:{total:+form.invTotal,used:0},
+      freeSupport:{startDate:form.startDate,endDate:end.toISOString().split("T")[0],renewals:0},
+      implementation:{stages:[
         {id:1,name:"Analisis Kebutuhan",status:"pending",notes:"",date:""},
         {id:2,name:"Setup & Instalasi",status:"pending",notes:"",date:""},
         {id:3,name:"Training Tim",status:"pending",notes:"",date:""},
@@ -563,21 +480,23 @@ function AddProjectModal({ onClose, onAdd }) {
         {id:5,name:"Go Live",status:"pending",notes:"",date:""},
         {id:6,name:"Post-Implementation Review",status:"pending",notes:"",date:""},
       ]},
-    });
+    };
+    await onAdd(newProj);
+    setLoading(false);
   };
   return (
     <Modal title="Tambah Proyek Baru" onClose={onClose}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        {[["name","Nama Proyek *","text"],["client","Nama Klien *","text"],["clientEmail","Email Klien","email"],["startDate","Tanggal Mulai","date"],["trainTotal","Total Jam Training","number"],["invTotal","Total Desain Faktur","number"]].map(([k,label,type]) => (
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+        {[["name","Nama Proyek *","text"],["client","Nama Klien *","text"],["clientEmail","Email Klien","email"],["startDate","Tanggal Mulai","date"],["trainTotal","Total Jam Training","number"],["invTotal","Total Desain Faktur","number"]].map(([k,label,type])=>(
           <div key={k} style={MINI}>
-            <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>{label}</label>
-            <input type={type} style={INP} value={form[k]} onChange={e => f(k, e.target.value)} />
+            <label style={{ fontSize:11, color:"#64748b", display:"block", marginBottom:4 }}>{label}</label>
+            <input type={type} style={INP} value={form[k]} onChange={e=>f(k,e.target.value)} />
           </div>
         ))}
       </div>
-      <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
-        <button onClick={submit} style={BTN}>Tambah Proyek</button>
-        <button onClick={onClose} style={{ padding: "10px 20px", borderRadius: 8, border: "1px solid #334155", background: "transparent", color: "#64748b", cursor: "pointer" }}>Batal</button>
+      <div style={{ marginTop:16, display:"flex", gap:10 }}>
+        <button onClick={submit} disabled={loading} style={{ ...BTN, opacity:loading?0.7:1 }}>{loading?"Menyimpan...":"Tambah Proyek"}</button>
+        <button onClick={onClose} style={{ padding:"10px 20px", borderRadius:8, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>Batal</button>
       </div>
     </Modal>
   );
@@ -591,110 +510,118 @@ export default function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [showLaporan, setShowLaporan] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Load on mount
   useEffect(() => {
-    const saved = loadFromStorage();
-    setProjects(saved ? saved.projects : defaultData.projects);
-    setLoading(false);
+    dbGetAll()
+      .then(data => { setProjects(data); setLoading(false); })
+      .catch(e => { setError(e.message); setLoading(false); });
   }, []);
 
-  // Save whenever projects changes (after initial load)
-  const saveProjects = useCallback((newProjects) => {
-    setProjects(newProjects);
-    saveToStorage({ projects: newProjects });
+  const handleSaveProject = useCallback(async (updated) => {
+    await dbUpsert(updated);
+    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
   }, []);
 
-  const handleSaveProject = useCallback((updated) => {
-    saveProjects(projects.map(p => p.id === updated.id ? updated : p));
-  }, [projects, saveProjects]);
-
-  const handleAddProject = useCallback((proj) => {
-    saveProjects([...projects, proj]);
+  const handleAddProject = useCallback(async (proj) => {
+    await dbUpsert(proj);
+    setProjects(prev => [...prev, proj]);
     setShowAdd(false);
-  }, [projects, saveProjects]);
+  }, []);
 
-  const handleDeleteProject = useCallback((id) => {
-    saveProjects(projects.filter(p => p.id !== id));
+  const handleDeleteProject = useCallback(async (id) => {
+    await dbDelete(id);
+    setProjects(prev => prev.filter(p => p.id !== id));
     setSelected(null);
-  }, [projects, saveProjects]);
+  }, []);
 
   const selectedProject = projects.find(p => p.id === selected);
-  const expiringSoon = projects.filter(p => { const d = getDaysRemaining(p.freeSupport.endDate); return d >= 0 && d <= 30; });
+  const expiringSoon = projects.filter(p => { const d=getDaysRemaining(p.freeSupport.endDate); return d>=0&&d<=30; });
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#060d1a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ color: "#38bdf8", fontSize: 18 }}>Memuat data...</div>
+    <div style={{ minHeight:"100vh", background:"#060d1a", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
+      <div style={{ width:40, height:40, border:"3px solid #1e293b", borderTop:"3px solid #38bdf8", borderRadius:"50%", animation:"spin 1s linear infinite" }} />
+      <div style={{ color:"#38bdf8", fontSize:16 }}>Memuat data dari Supabase...</div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+
+  if (error) return (
+    <div style={{ minHeight:"100vh", background:"#060d1a", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ background:"#1c0a0a", border:"1px solid #ef4444", borderRadius:16, padding:32, maxWidth:400, textAlign:"center" }}>
+        <div style={{ fontSize:32 }}>⚠️</div>
+        <div style={{ color:"#ef4444", fontWeight:700, fontSize:18, marginTop:12 }}>Gagal terhubung ke database</div>
+        <div style={{ color:"#64748b", fontSize:13, marginTop:8 }}>{error}</div>
+        <button onClick={()=>window.location.reload()} style={{ ...BTN, marginTop:20 }}>Coba Lagi</button>
+      </div>
     </div>
   );
 
   const stats = [
-    { label: "Total Proyek", val: projects.length, color: "#38bdf8", icon: "📁" },
-    { label: "Perlu Perpanjang", val: projects.filter(p => getDaysRemaining(p.freeSupport.endDate) <= 90).length, color: "#f59e0b", icon: "🔔" },
-    { label: "Go Live", val: projects.filter(p => p.implementation.stages.find(s => s.name==="Go Live")?.status==="done").length, color: "#10b981", icon: "🚀" },
-    { label: "Berjalan", val: projects.filter(p => p.implementation.stages.some(s => s.status==="in-progress")).length, color: "#a78bfa", icon: "⚡" },
+    { label:"Total Proyek", val:projects.length, color:"#38bdf8", icon:"📁" },
+    { label:"Perlu Perpanjang", val:projects.filter(p=>getDaysRemaining(p.freeSupport.endDate)<=90).length, color:"#f59e0b", icon:"🔔" },
+    { label:"Go Live", val:projects.filter(p=>p.implementation.stages.find(s=>s.name==="Go Live")?.status==="done").length, color:"#10b981", icon:"🚀" },
+    { label:"Berjalan", val:projects.filter(p=>p.implementation.stages.some(s=>s.status==="in-progress")).length, color:"#a78bfa", icon:"⚡" },
   ];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#060d1a", padding: "24px 20px", fontFamily: "'Plus Jakarta Sans','Segoe UI',sans-serif", color: "#e2e8f0" }}>
-      <style>{`*,*::before,*::after{box-sizing:border-box} ::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-track{background:#0c1628} ::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:3px}`}</style>
-      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+    <div style={{ minHeight:"100vh", background:"#060d1a", padding:"24px 20px", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif", color:"#e2e8f0" }}>
+      <style>{`*,*::before,*::after{box-sizing:border-box}::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#0c1628}::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:3px}`}</style>
+      <div style={{ maxWidth:1000, margin:"0 auto" }}>
 
-        <div style={{ marginBottom: 32, display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 16 }}>
+        <div style={{ marginBottom:32, display:"flex", justifyContent:"space-between", alignItems:"flex-end", flexWrap:"wrap", gap:16 }}>
           <div>
-            <div style={{ fontSize: 11, color: "#334155", letterSpacing: 3, textTransform: "uppercase", marginBottom: 6 }}>Project Management</div>
-            <h1 style={{ fontSize: 34, fontWeight: 900, color: "#f1f5f9", lineHeight: 1, margin: 0 }}>Dashboard Proyek</h1>
-            <div style={{ fontSize: 14, color: "#475569", marginTop: 6 }}>{projects.length} proyek aktif · Pantau progress & sisa layanan</div>
+            <div style={{ fontSize:11, color:"#334155", letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>Project Management</div>
+            <h1 style={{ fontSize:34, fontWeight:900, color:"#f1f5f9", lineHeight:1, margin:0 }}>Dashboard Proyek</h1>
+            <div style={{ fontSize:14, color:"#475569", marginTop:6 }}>
+              {projects.length} proyek aktif · 
+              <span style={{ color:"#10b981", marginLeft:4 }}>● Terhubung ke Supabase</span>
+            </div>
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={() => setShowLaporan(true)} style={{ padding: "12px 20px", borderRadius: 8, border: "1px solid #059669", background: "#052e16", color: "#10b981", cursor: "pointer", fontWeight: 600, fontSize: 14 }}>📊 Laporan Excel</button>
-            <button onClick={() => setShowAdd(true)} style={{ ...BTN, padding: "12px 24px", fontSize: 15 }}>+ Proyek Baru</button>
+          <div style={{ display:"flex", gap:10 }}>
+            <button onClick={()=>setShowLaporan(true)} style={{ padding:"12px 20px", borderRadius:8, border:"1px solid #059669", background:"#052e16", color:"#10b981", cursor:"pointer", fontWeight:600, fontSize:14 }}>📊 Laporan Excel</button>
+            <button onClick={()=>setShowAdd(true)} style={{ ...BTN, padding:"12px 24px", fontSize:15 }}>+ Proyek Baru</button>
           </div>
         </div>
 
         {expiringSoon.length > 0 && (
-          <div style={{ background: "#1c0800", border: "1px solid #f59e0b44", borderRadius: 12, padding: "14px 18px", marginBottom: 24, display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ fontSize: 20 }}>⚠️</span>
+          <div style={{ background:"#1c0800", border:"1px solid #f59e0b44", borderRadius:12, padding:"14px 18px", marginBottom:24, display:"flex", alignItems:"center", gap:12 }}>
+            <span style={{ fontSize:20 }}>⚠️</span>
             <div>
-              <div style={{ fontWeight: 700, color: "#f59e0b", fontSize: 14 }}>Free Support Hampir Berakhir</div>
-              <div style={{ fontSize: 12, color: "#78716c" }}>{expiringSoon.map(p => `${p.name} (${getDaysRemaining(p.freeSupport.endDate)} hari lagi)`).join(" · ")}</div>
+              <div style={{ fontWeight:700, color:"#f59e0b", fontSize:14 }}>Free Support Hampir Berakhir</div>
+              <div style={{ fontSize:12, color:"#78716c" }}>{expiringSoon.map(p=>`${p.name} (${getDaysRemaining(p.freeSupport.endDate)} hari lagi)`).join(" · ")}</div>
             </div>
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px,1fr))", gap: 12, marginBottom: 28 }}>
-          {stats.map(s => (
-            <div key={s.label} style={{ background: "#0c1628", border: "1px solid #1a2744", borderRadius: 14, padding: "16px 18px" }}>
-              <div style={{ fontSize: 22 }}>{s.icon}</div>
-              <div style={{ fontSize: 30, fontWeight: 900, color: s.color, lineHeight: 1.1 }}>{s.val}</div>
-              <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>{s.label}</div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))", gap:12, marginBottom:28 }}>
+          {stats.map(s=>(
+            <div key={s.label} style={{ background:"#0c1628", border:"1px solid #1a2744", borderRadius:14, padding:"16px 18px" }}>
+              <div style={{ fontSize:22 }}>{s.icon}</div>
+              <div style={{ fontSize:30, fontWeight:900, color:s.color, lineHeight:1.1 }}>{s.val}</div>
+              <div style={{ fontSize:12, color:"#475569", marginTop:2 }}>{s.label}</div>
             </div>
           ))}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(420px,1fr))", gap: 16 }}>
-          {projects.map(proj => <ProjectCard key={proj.id} project={proj} onSelect={setSelected} />)}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(420px,1fr))", gap:16 }}>
+          {projects.map(proj=><ProjectCard key={proj.id} project={proj} onSelect={setSelected} />)}
         </div>
 
-        {projects.length === 0 && (
-          <div style={{ textAlign: "center", padding: "60px 20px", color: "#334155" }}>
-            <div style={{ fontSize: 48 }}>📂</div>
-            <div style={{ fontSize: 18, marginTop: 12 }}>Belum ada proyek</div>
-            <div style={{ fontSize: 13, marginTop: 6 }}>Klik "+ Proyek Baru" untuk mulai</div>
+        {projects.length===0 && (
+          <div style={{ textAlign:"center", padding:"60px 20px", color:"#334155" }}>
+            <div style={{ fontSize:48 }}>📂</div>
+            <div style={{ fontSize:18, marginTop:12 }}>Belum ada proyek</div>
+            <div style={{ fontSize:13, marginTop:6 }}>Klik "+ Proyek Baru" untuk mulai</div>
           </div>
         )}
       </div>
 
       {selectedProject && (
-        <DetailView
-          project={selectedProject}
-          onClose={() => setSelected(null)}
-          onSave={handleSaveProject}
-          onDelete={() => handleDeleteProject(selectedProject.id)}
-        />
+        <DetailView project={selectedProject} onClose={()=>setSelected(null)} onSave={handleSaveProject} onDelete={()=>handleDeleteProject(selectedProject.id)} />
       )}
-      {showAdd && <AddProjectModal onClose={() => setShowAdd(false)} onAdd={handleAddProject} />}
-      {showLaporan && <LaporanModal projects={projects} onClose={() => setShowLaporan(false)} />}
+      {showAdd && <AddProjectModal onClose={()=>setShowAdd(false)} onAdd={handleAddProject} />}
+      {showLaporan && <LaporanModal projects={projects} onClose={()=>setShowLaporan(false)} />}
     </div>
   );
 }
