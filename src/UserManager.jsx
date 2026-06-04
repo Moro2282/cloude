@@ -5,9 +5,10 @@ const INP = { width:"100%", background:"#0c1628", border:"1px solid #1e293b", bo
 const MINI = { background:"#0a1525", border:"1px solid #1a2744", borderRadius:10, padding:14 };
 
 const ROLE_CONFIG = {
-  admin:  { color:"#a78bfa", bg:"#1e1040", label:"Admin",  desc:"Semua akses" },
-  editor: { color:"#38bdf8", bg:"#0c2a3f", label:"Editor", desc:"Edit & tambah" },
-  viewer: { color:"#64748b", bg:"#0f172a", label:"Viewer", desc:"Lihat saja" },
+  admin:   { color:"#a78bfa", bg:"#1e1040", label:"Admin",   desc:"Semua akses" },
+  editor:  { color:"#38bdf8", bg:"#0c2a3f", label:"Editor",  desc:"Edit & tambah" },
+  trainer: { color:"#f59e0b", bg:"#451a03", label:"Trainer", desc:"Input training" },
+  viewer:  { color:"#64748b", bg:"#0f172a", label:"Viewer",  desc:"Lihat saja" },
 };
 
 function RoleBadge({ role }) {
@@ -123,6 +124,7 @@ export default function UserManager({ currentUser, onClose }) {
                 <select style={{ ...INP, cursor:"pointer" }} value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}>
                   <option value="admin">Admin — Semua akses</option>
                   <option value="editor">Editor — Edit & tambah</option>
+                  <option value="trainer">Trainer — Input training</option>
                   <option value="viewer">Viewer — Lihat saja</option>
                 </select>
               </div>
