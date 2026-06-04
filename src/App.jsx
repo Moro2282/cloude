@@ -514,45 +514,181 @@ function exportToExcel(projects) {
 
 function LaporanModal({ projects, onClose }) {
   const [selected, setSelected] = useState(projects.map(p => p.id));
+  const [filterSupport, setFilterSupport] = useState("all");
+  const [filterImpl, setFilterImpl] = useState("all");
+  const [filterServer, setFilterServer] = useState("all");
+  const [search, setSearch] = useState("");
+
+  // Apply filters to project list
+  const visibleProjects = projects.filter(p => {
+    if (search && !p.client.toLowerCase().includes(search.toLowerCase()) &&
+        !p.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (filterSupport !== "all") {
+      const d = getDaysRemaining(p.freeSupport.endDate);
+      if (filterSupport === "expired" && d > 0) return false;
+      if (filterSupport === "warning" && (d <= 0 || d > 90)) return false;
+      if (filterSupport === "active" && d <= 90) return false;
+    }
+    if (filterImpl !== "all") {
+      const allDone = p.implementation.stages.every(s => s.status === "done");
+      const hasActive = p.implementation.stages.some(s => s.status === "in-progress");
+      if (filterImpl === "done" && !allDone) return false;
+      if (filterImpl === "running" && !hasActive) return false;
+      if (filterImpl === "pending" && (allDone || hasActive)) return false;
+    }
+    if (filterServer !== "all") {
+      const hasServer = p.server && p.server.active;
+      const expiring = hasServer && p.server.endDate && getDaysRemaining(p.server.endDate) <= 30;
+      if (filterServer === "active" && !hasServer) return false;
+      if (filterServer === "none" && hasServer) return false;
+      if (filterServer === "expiring" && !expiring) return false;
+    }
+    return true;
+  });
+
+  // Sync selected when filter changes
+  useEffect(() => {
+    setSelected(visibleProjects.map(p => p.id));
+  }, [filterSupport, filterImpl, filterServer, search]);
+
   const toggle = id => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const filtered = projects.filter(p => selected.includes(p.id));
+
+  const resetFilters = () => { setFilterSupport("all"); setFilterImpl("all"); setFilterServer("all"); setSearch(""); };
+  const hasFilter = filterSupport !== "all" || filterImpl !== "all" || filterServer !== "all" || search;
+
+  const FilterChip = ({ active, onClick, color, bg, label }) => (
+    <button onClick={onClick} style={{
+      padding: "5px 12px", borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: "pointer",
+      border: `1px solid ${active ? color : "#1e293b"}`,
+      background: active ? bg : "transparent",
+      color: active ? color : "#475569", transition: "all 0.15s",
+    }}>{label}</button>
+  );
+
   return (
     <Modal title="📊 Modul Laporan & Export Excel" onClose={onClose} wide>
+      {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 20 }}>
-        {[["Proyek Dipilih",filtered.length,"#38bdf8",""],["Total Jam Training",filtered.reduce((a,p)=>a+p.trainingHours.total,0),"#10b981"," jam"],["Total Desain Faktur",filtered.reduce((a,p)=>a+p.invoiceDesigns.total,0),"#a78bfa"," desain"],["Support Kritis",filtered.filter(p=>getDaysRemaining(p.freeSupport.endDate)<=30).length,"#ef4444",""]].map(([l,v,c,u])=>(
+        {[
+          ["Proyek Dipilih", filtered.length, "#38bdf8", ""],
+          ["Total Jam Training", filtered.reduce((a,p)=>a+p.trainingHours.total,0), "#10b981", " jam"],
+          ["Total Desain Faktur", filtered.reduce((a,p)=>a+p.invoiceDesigns.total,0), "#a78bfa", " desain"],
+          ["Support Kritis", filtered.filter(p=>getDaysRemaining(p.freeSupport.endDate)<=30).length, "#ef4444", ""],
+        ].map(([l,v,c,u]) => (
           <div key={l} style={{ ...MINI, padding:"12px 14px" }}>
             <div style={{ fontSize:22, fontWeight:800, color:c }}>{v}<span style={{ fontSize:11, color:"#475569", fontWeight:400 }}>{u}</span></div>
             <div style={{ fontSize:11, color:"#475569", marginTop:2 }}>{l}</div>
           </div>
         ))}
       </div>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-          <div style={{ fontSize:13, fontWeight:600, color:"#94a3b8" }}>Pilih Proyek</div>
-          <button onClick={()=>setSelected(selected.length===projects.length?[]:projects.map(p=>p.id))} style={{ fontSize:11, padding:"4px 12px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>
-            {selected.length===projects.length?"Batalkan Semua":"Pilih Semua"}
-          </button>
+
+      {/* Filter Panel */}
+      <div style={{ ...MINI, marginBottom: 16 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+          <div style={{ fontSize:12, fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:1 }}>🎛 Filter Laporan</div>
+          {hasFilter && (
+            <button onClick={resetFilters} style={{ fontSize:11, padding:"3px 10px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>✕ Reset</button>
+          )}
         </div>
-        {projects.map(p=>{
-          const isChecked=selected.includes(p.id);
-          return(
-            <div key={p.id} onClick={()=>toggle(p.id)} style={{ display:"flex", alignItems:"center", gap:14, padding:"12px 16px", marginBottom:8, background:isChecked?"#0d1f38":"#0a1525", border:`1px solid ${isChecked?"#1d4ed8":"#1a2744"}`, borderRadius:10, cursor:"pointer" }}>
-              <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${isChecked?"#3b82f6":"#334155"}`, background:isChecked?"#1d4ed8":"transparent", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:11, fontWeight:700, flexShrink:0 }}>{isChecked?"✓":""}</div>
-              <div style={{ flex:1 }}>
-                <div style={{ fontWeight:600, color:"#e2e8f0", fontSize:14 }}>{p.name}</div>
-                <div style={{ fontSize:11, color:"#475569" }}>{p.client}</div>
-              </div>
-              <SupportBadge days={getDaysRemaining(p.freeSupport.endDate)} />
-            </div>
-          );
-        })}
+
+        {/* Search */}
+        <div style={{ position:"relative", marginBottom:12 }}>
+          <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"#475569", fontSize:13 }}>🔍</span>
+          <input type="text" placeholder="Cari nama proyek / klien..." value={search} onChange={e=>setSearch(e.target.value)}
+            style={{ width:"100%", background:"#060d1a", border:"1px solid #1e293b", borderRadius:8, padding:"7px 12px 7px 32px", color:"#e2e8f0", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }} />
+          {search && <span onClick={()=>setSearch("")} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", cursor:"pointer", color:"#475569" }}>✕</span>}
+        </div>
+
+        {/* Filter rows */}
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+            <span style={{ fontSize:11, color:"#475569", minWidth:90 }}>Free Support</span>
+            {[["all","Semua","#64748b","#0f172a"],["active","Aktif","#10b981","#052e16"],["warning","⚠️ Hampir Habis","#f59e0b","#451a03"],["expired","Expired","#ef4444","#450a0a"]].map(([v,l,c,bg])=>(
+              <FilterChip key={v} active={filterSupport===v} onClick={()=>setFilterSupport(v)} color={c} bg={bg} label={l} />
+            ))}
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+            <span style={{ fontSize:11, color:"#475569", minWidth:90 }}>Implementasi</span>
+            {[["all","Semua","#64748b","#0f172a"],["running","Berjalan","#f59e0b","#451a03"],["done","Selesai","#10b981","#052e16"],["pending","Belum Mulai","#475569","#0f172a"]].map(([v,l,c,bg])=>(
+              <FilterChip key={v} active={filterImpl===v} onClick={()=>setFilterImpl(v)} color={c} bg={bg} label={l} />
+            ))}
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+            <span style={{ fontSize:11, color:"#475569", minWidth:90 }}>Server</span>
+            {[["all","Semua","#64748b","#0f172a"],["active","Pakai Server","#38bdf8","#0c2a3f"],["none","No Server","#475569","#0f172a"],["expiring","Mau Habis","#ef4444","#450a0a"]].map(([v,l,c,bg])=>(
+              <FilterChip key={v} active={filterServer===v} onClick={()=>setFilterServer(v)} color={c} bg={bg} label={l} />
+            ))}
+          </div>
+        </div>
+
+        {/* Result info */}
+        <div style={{ marginTop:12, fontSize:12, color:"#334155" }}>
+          {hasFilter
+            ? <span>Filter aktif: menampilkan <span style={{ color:"#38bdf8", fontWeight:600 }}>{visibleProjects.length}</span> dari {projects.length} proyek</span>
+            : <span style={{ color:"#1e293b" }}>Semua {projects.length} proyek ditampilkan</span>
+          }
+        </div>
       </div>
-      <button onClick={()=>filtered.length>0&&exportToExcel(filtered)} disabled={filtered.length===0} style={{ ...BTN, background:filtered.length===0?"#1e293b":"#059669", color:filtered.length===0?"#334155":"#fff", cursor:filtered.length===0?"not-allowed":"pointer", fontSize:15 }}>
+
+      {/* Project checklist */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+          <div style={{ fontSize:13, fontWeight:600, color:"#94a3b8" }}>
+            Pilih Proyek untuk Diexport
+            <span style={{ fontSize:11, color:"#334155", marginLeft:8 }}>({filtered.length} dipilih)</span>
+          </div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button onClick={()=>setSelected(visibleProjects.map(p=>p.id))} style={{ fontSize:11, padding:"4px 10px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>Pilih Semua</button>
+            <button onClick={()=>setSelected([])} style={{ fontSize:11, padding:"4px 10px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>Kosongkan</button>
+          </div>
+        </div>
+
+        {visibleProjects.length === 0 ? (
+          <div style={{ textAlign:"center", padding:"24px", color:"#334155", fontSize:13 }}>Tidak ada proyek yang cocok dengan filter</div>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:8, maxHeight:280, overflowY:"auto" }}>
+            {visibleProjects.map(p => {
+              const isChecked = selected.includes(p.id);
+              const days = getDaysRemaining(p.freeSupport.endDate);
+              const doneStages = p.implementation.stages.filter(s=>s.status==="done").length;
+              return (
+                <div key={p.id} onClick={()=>toggle(p.id)} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", background:isChecked?"#0d1f38":"#0a1525", border:`1px solid ${isChecked?"#1d4ed8":"#1a2744"}`, borderRadius:10, cursor:"pointer", transition:"all 0.15s" }}>
+                  <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${isChecked?"#3b82f6":"#334155"}`, background:isChecked?"#1d4ed8":"transparent", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:11, fontWeight:700, flexShrink:0 }}>{isChecked?"✓":""}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:600, color:"#e2e8f0", fontSize:13 }}>{p.name}</div>
+                    <div style={{ fontSize:11, color:"#475569" }}>{p.client}</div>
+                  </div>
+                  <div style={{ display:"flex", gap:6, flexShrink:0, flexWrap:"wrap", justifyContent:"flex-end" }}>
+                    <span style={badgeStyle("#0c1628","#38bdf8")}>{doneStages}/{p.implementation.stages.length} tahap</span>
+                    <SupportBadge days={days} />
+                    {p.server?.active && <span style={badgeStyle("#0c2a3f","#38bdf8")}>🖥 Server</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Sheet info */}
+      <div style={{ background:"#0a1525", border:"1px solid #1a2744", borderRadius:10, padding:14, marginBottom:16 }}>
+        <div style={{ fontSize:11, color:"#475569", marginBottom:8, textTransform:"uppercase", letterSpacing:1 }}>4 Sheet yang akan digenerate</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
+          {[["📋","Ringkasan Proyek"],["🔧","Detail Implementasi"],["🛡️","Free Support"],["📦","Kuota Layanan"]].map(([icon,title])=>(
+            <div key={title} style={{ fontSize:12, color:"#64748b" }}>{icon} {title}</div>
+          ))}
+        </div>
+      </div>
+
+      {/* Export button */}
+      <button onClick={()=>filtered.length>0&&exportToExcel(filtered)} disabled={filtered.length===0} style={{ ...BTN, background:filtered.length===0?"#1e293b":"#059669", color:filtered.length===0?"#334155":"#fff", cursor:filtered.length===0?"not-allowed":"pointer", fontSize:15, padding:"12px 28px" }}>
         ⬇️ Export Excel ({filtered.length} proyek)
       </button>
     </Modal>
   );
 }
+
 
 // ─── ADD PROJECT ──────────────────────────────────────────────────────────────
 
