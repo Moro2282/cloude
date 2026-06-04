@@ -9,6 +9,33 @@ function getToken() {
   catch { return SUPABASE_KEY; }
 }
 
+async function getValidToken() {
+  try {
+    const session = JSON.parse(localStorage.getItem("sb_session"));
+    if (!session?.access_token) return SUPABASE_KEY;
+    
+    // Check if token is close to expiry (decode JWT payload)
+    const payload = JSON.parse(atob(session.access_token.split(".")[1]));
+    const expiresAt = payload.exp * 1000;
+    const now = Date.now();
+    
+    // If expires within 5 minutes, refresh
+    if (expiresAt - now < 5 * 60 * 1000) {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY },
+        body: JSON.stringify({ refresh_token: session.refresh_token }),
+      });
+      if (res.ok) {
+        const newSession = await res.json();
+        localStorage.setItem("sb_session", JSON.stringify(newSession));
+        return newSession.access_token;
+      }
+    }
+    return session.access_token;
+  } catch { return SUPABASE_KEY; }
+}
+
 function hdrs() {
   return {
     "Content-Type": "application/json",
@@ -18,20 +45,30 @@ function hdrs() {
   };
 }
 
+async function getHdrs() {
+  const token = await getValidToken();
+  return {
+    "Content-Type": "application/json",
+    "apikey": SUPABASE_KEY,
+    "Authorization": `Bearer ${token}`,
+    "Prefer": "return=representation",
+  };
+}
+
 async function getSessions(projectId) {
-  const res = await fetch(`${TRAIN_API}?project_id=eq.${projectId}&order=training_date.desc`, { headers: hdrs() });
+  const res = await fetch(`${TRAIN_API}?project_id=eq.${projectId}&order=training_date.desc`, { headers: await getHdrs() });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
 async function addSession(session) {
-  const res = await fetch(TRAIN_API, { method: "POST", headers: hdrs(), body: JSON.stringify(session) });
+  const res = await fetch(TRAIN_API, { method: "POST", headers: await getHdrs(), body: JSON.stringify(session) });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
 async function deleteSession(id) {
-  const res = await fetch(`${TRAIN_API}?id=eq.${id}`, { method: "DELETE", headers: hdrs() });
+  const res = await fetch(`${TRAIN_API}?id=eq.${id}`, { method: "DELETE", headers: await getHdrs() });
   if (!res.ok) throw new Error(await res.text());
 }
 
