@@ -3,6 +3,7 @@ import LoginPage from "./LoginPage";
 import UserManager from "./UserManager";
 import TrainingTab from "./TrainingTab";
 import KomisiPage from "./KomisiPage";
+import ProfileMenu from "./ProfileMenu";
 import { getCurrentUser, signOut, handleOAuthCallback, refreshSession } from "./auth";
 import * as XLSX from "xlsx";
 
@@ -945,21 +946,7 @@ export default function App() {
             {isAdmin && (
               <button onClick={()=>setShowUserMgr(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #7c3aed", background:"#1e1040", color:"#a78bfa", cursor:"pointer", fontWeight:600, fontSize:13 }}>👥 Users</button>
             )}
-            {/* User menu */}
-            <div style={{ display:"flex", alignItems:"center", gap:10, padding:"6px 14px", background:"#0c1628", border:"1px solid #1a2744", borderRadius:10 }}>
-              <div style={{ width:30, height:30, borderRadius:"50%", background:"linear-gradient(135deg,#1d4ed8,#7c3aed)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", flexShrink:0 }}>
-                {(currentUser?.profile?.full_name || currentUser?.email || "?").charAt(0).toUpperCase()}
-              </div>
-              <div style={{ minWidth:0 }}>
-                <div style={{ fontSize:12, fontWeight:600, color:"#e2e8f0", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:120 }}>
-                  {currentUser?.profile?.full_name || currentUser?.email}
-                </div>
-                <div style={{ fontSize:10, color: currentUser?.profile?.role==="admin"?"#a78bfa":currentUser?.profile?.role==="editor"?"#38bdf8":"#64748b", fontWeight:600, textTransform:"uppercase", letterSpacing:0.5 }}>
-                  {currentUser?.profile?.role || "viewer"}
-                </div>
-              </div>
-              <button onClick={handleLogout} title="Logout" style={{ background:"none", border:"none", color:"#475569", cursor:"pointer", fontSize:16, padding:"2px 4px", flexShrink:0 }}>⏏</button>
-            </div>
+            <ProfileMenu currentUser={currentUser} onLogout={handleLogout} />
           </div>
         </div>
 
