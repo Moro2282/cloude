@@ -100,6 +100,7 @@ export default function UserManager({ currentUser, onClose }) {
   };
 
   return (
+    <>
     <div style={{ position:"fixed", inset:0, background:"#00000099", zIndex:2000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={onClose}>
       <div style={{ background:"#0f172a", border:"1px solid #1e293b", borderRadius:16, padding:28, maxWidth:680, width:"100%", maxHeight:"90vh", overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
         
@@ -211,12 +212,7 @@ export default function UserManager({ currentUser, onClose }) {
         )}
       </div>
     </div>
-      {resetTarget && (
-        <ResetPasswordModal
-          user={resetTarget}
-          onClose={() => setResetTarget(null)}
-          onReset={handleResetPassword}
-        />
-      )}
+    {resetTarget && <ResetPasswordModal user={resetTarget} onClose={() => setResetTarget(null)} onReset={handleResetPassword} />}
+    </>
   );
 }
