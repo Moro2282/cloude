@@ -1,18 +1,54 @@
 import { useState, useEffect, useCallback } from "react";
 import LoginPage from "./LoginPage";
 import UserManager from "./UserManager";
+import TrainingTab from "./TrainingTab";
 import { getCurrentUser, signOut, handleOAuthCallback, refreshSession } from "./auth";
 import * as XLSX from "xlsx";
 
 const SUPABASE_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
 const API = `${SUPABASE_URL}/rest/v1/projects`;
+const TRAIN_API = `${SUPABASE_URL}/rest/v1/training_sessions`;
 const HEADERS = {
   "Content-Type": "application/json",
   "apikey": SUPABASE_KEY,
   "Authorization": `Bearer ${SUPABASE_KEY}`,
   "Prefer": "return=representation",
 };
+
+// ─── TRAINING SESSION DB ──────────────────────────────────────────────────────
+async function dbGetTrainingSessions(projectId) {
+  const res = await fetch(`${TRAIN_API}?project_id=eq.${projectId}&order=training_date.desc`, {
+    headers: { ...HEADERS, "Authorization": `Bearer ${getAuthHeaders()["Authorization"]?.split(" ")[1] || SUPABASE_KEY}` }
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function dbAddTrainingSession(session) {
+  const res = await fetch(TRAIN_API, {
+    method: "POST",
+    headers: { ...HEADERS, "Authorization": `Bearer ${getAuthHeaders()["Authorization"]?.split(" ")[1] || SUPABASE_KEY}` },
+    body: JSON.stringify(session),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function dbDeleteTrainingSession(id) {
+  const res = await fetch(`${TRAIN_API}?id=eq.${id}`, {
+    method: "DELETE",
+    headers: { ...HEADERS, "Authorization": `Bearer ${getAuthHeaders()["Authorization"]?.split(" ")[1] || SUPABASE_KEY}` }
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+function getAuthHeaders() {
+  try {
+    const s = JSON.parse(localStorage.getItem("sb_session"));
+    return s ? { "Authorization": `Bearer ${s.access_token}` } : {};
+  } catch { return {}; }
+}
 
 // ─── SUPABASE HELPERS ─────────────────────────────────────────────────────────
 
@@ -208,7 +244,7 @@ function ProjectCard({ project, onSelect }) {
 
 // ─── DETAIL VIEW ──────────────────────────────────────────────────────────────
 
-function DetailView({ project, onClose, onSave, onDelete, canEdit = true, canDelete = true }) {
+function DetailView({ project, onClose, onSave, onDelete, canEdit = true, canDelete = true, canTraining = true, currentUser }) {
   const [p, setP] = useState(() => JSON.parse(JSON.stringify(project)));
   const [activeTab, setActiveTab] = useState("overview");
   const [editStage, setEditStage] = useState(null);
@@ -310,22 +346,18 @@ function DetailView({ project, onClose, onSave, onDelete, canEdit = true, canDel
       )}
 
       {activeTab === "training" && (
-        <div>
-          <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 12 }}>Atur kuota dan pemakaian jam training.</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-            <div style={MINI}><label style={{ fontSize: 11, color: "#64748b" }}>Total Jam (Kontrak)</label><input type="number" style={INP} value={p.trainingHours.total} onChange={e => updateField("trainingHours.total", +e.target.value)} /></div>
-            <div style={MINI}><label style={{ fontSize: 11, color: "#64748b" }}>Jam Terpakai</label><input type="number" style={INP} value={p.trainingHours.used} onChange={e => updateField("trainingHours.used", +e.target.value)} /></div>
-          </div>
-          <div style={{ ...MINI, marginBottom: 16 }}>
-            <ProgressBar value={p.trainingHours.used} max={p.trainingHours.total} />
-            <div style={{ marginTop: 12, display: "flex", gap: 20 }}>
-              {[[p.trainingHours.total-p.trainingHours.used,"#38bdf8","jam tersisa"],[p.trainingHours.used,"#64748b","jam terpakai"],[p.trainingHours.total,"#94a3b8","total jam"]].map(([v,c,l]) => (
-                <div key={l}><div style={{ fontSize: 26, fontWeight: 800, color: c }}>{v}</div><div style={{ fontSize: 11, color: "#475569" }}>{l}</div></div>
-              ))}
-            </div>
-          </div>
-          <SaveBtn />
-        </div>
+        <TrainingTab
+          project={p}
+          canEdit={canEdit}
+          canTraining={canTraining}
+          canDelete={canDelete}
+          currentUser={currentUser}
+          onUpdateHours={(total, used) => {
+            updateField("trainingHours.total", total);
+            updateField("trainingHours.used", used);
+          }}
+          onSave={handleSave}
+        />
       )}
 
       {activeTab === "faktur" && (
@@ -795,8 +827,10 @@ export default function App() {
   // Role helpers
   const isAdmin = currentUser?.profile?.role === "admin";
   const isEditor = currentUser?.profile?.role === "editor" || isAdmin;
+  const isTrainer = currentUser?.profile?.role === "trainer" || isEditor;
   const canEdit = isEditor;
   const canDelete = isAdmin;
+  const canTraining = isTrainer;
 
   const handleSaveProject = useCallback(async (updated) => {
     await dbUpsert(updated);
@@ -1058,7 +1092,7 @@ export default function App() {
       </div>
 
       {selectedProject && (
-        <DetailView project={selectedProject} onClose={()=>setSelected(null)} onSave={canEdit ? handleSaveProject : null} onDelete={canDelete ? ()=>handleDeleteProject(selectedProject.id) : null} canEdit={canEdit} canDelete={canDelete} />
+        <DetailView project={selectedProject} onClose={()=>setSelected(null)} onSave={canEdit ? handleSaveProject : null} onDelete={canDelete ? ()=>handleDeleteProject(selectedProject.id) : null} canEdit={canEdit} canDelete={canDelete} canTraining={canTraining} currentUser={currentUser} />
       )}
       {showAdd && canEdit && <AddProjectModal onClose={()=>setShowAdd(false)} onAdd={handleAddProject} />}
       {showLaporan && <LaporanModal projects={projects} onClose={()=>setShowLaporan(false)} />}
