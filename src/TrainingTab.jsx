@@ -48,6 +48,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
   const [form, setForm] = useState({
     training_date: new Date().toISOString().split("T")[0],
     trainer_name: currentUser?.profile?.full_name || "",
+    is_partner: false,
     participants: "",
     topics: "",
     start_time: "08:00",
@@ -99,6 +100,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
         project_id: project.id,
         training_date: form.training_date,
         trainer_name: form.trainer_name,
+        is_partner: form.is_partner,
         participants: form.participants,
         topic: form.topics,
         hours_used: hrs,
@@ -116,7 +118,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
       await onUpdateHours(project.trainingHours.total, newUsed);
       await onSave({ ...project, trainingHours: { ...project.trainingHours, used: newUsed } });
 
-      setForm({ training_date: new Date().toISOString().split("T")[0], trainer_name: currentUser?.profile?.full_name || "", participants: "", topics: "", start_time: "08:00", end_time: "10:00", use_vehicle: false, notes: "" });
+      setForm({ training_date: new Date().toISOString().split("T")[0], trainer_name: currentUser?.profile?.full_name || "", is_partner: false, participants: "", topics: "", start_time: "08:00", end_time: "10:00", use_vehicle: false, notes: "" });
       setShowForm(false);
       notify(`Sesi training berhasil dicatat! ${hrs} jam dikurangi dari kuota.`);
     } catch (e) { notify(e.message, "error"); }
@@ -214,6 +216,19 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                       </div>
                     </div>
 
+                    {/* Trainer status toggle */}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {[["internal", false, "🏢 Internal", "#38bdf8", "#0c2a3f"], ["partner", true, "🤝 Partner", "#a78bfa", "#1e1040"]].map(([key, val, label, color, bg]) => (
+                        <button key={key} onClick={() => setForm(f => ({ ...f, is_partner: val }))}
+                          style={{ padding: "7px 18px", borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: "pointer", border: `1px solid ${form.is_partner === val ? color : "#1e293b"}`, background: form.is_partner === val ? bg : "transparent", color: form.is_partner === val ? color : "#475569", transition: "all 0.15s" }}>
+                          {label}
+                        </button>
+                      ))}
+                      <span style={{ fontSize: 11, color: "#475569", alignSelf: "center", marginLeft: 4 }}>
+                        {form.is_partner ? "Trainer dari mitra/perusahaan luar" : "Trainer staf internal"}
+                      </span>
+                    </div>
+
                     {/* Row 2: Jam Mulai & Selesai + durasi otomatis */}
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                       <div>
@@ -305,6 +320,10 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                           <span style={{ fontSize: 11, color: "#475569" }}>🕐 {s.start_time} – {s.end_time}</span>
                         )}
                         <span style={{ fontSize: 11, color: "#475569" }}>📅 {s.training_date}</span>
+                        {s.is_partner
+                          ? <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: "#1e1040", color: "#a78bfa" }}>🤝 Partner</span>
+                          : <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: "#0c2a3f", color: "#38bdf8" }}>🏢 Internal</span>
+                        }
                         {s.use_vehicle && <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: "#052e16", color: "#10b981" }}>🚗 Kendaraan Pribadi</span>}
                       </div>
                       {/* Details grid */}
