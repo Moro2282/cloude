@@ -165,6 +165,7 @@ export default function UserManager({ currentUser, onClose }) {
                   style={{ background:"#0c1628", border:"1px solid #1e293b", borderRadius:8, padding:"5px 10px", color: ROLE_CONFIG[user.role]?.color || "#e2e8f0", fontSize:12, cursor: user.id===currentUser.id?"not-allowed":"pointer", outline:"none", fontWeight:600 }}>
                   <option value="admin">Admin</option>
                   <option value="editor">Editor</option>
+                  <option value="trainer">Trainer</option>
                   <option value="viewer">Viewer</option>
                 </select>
                 {/* Delete */}
