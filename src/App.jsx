@@ -817,6 +817,19 @@ export default function App() {
       }
     }
     init();
+
+    // Auto-refresh token every 50 minutes to prevent JWT expiry
+    const refreshInterval = setInterval(async () => {
+      const { refreshSession } = await import("./auth");
+      const refreshed = await refreshSession();
+      if (!refreshed) {
+        // Session truly expired, force re-login
+        setCurrentUser(null);
+        setProjects([]);
+      }
+    }, 50 * 60 * 1000);
+
+    return () => clearInterval(refreshInterval);
   }, []);
 
   const handleLogin = async () => {
