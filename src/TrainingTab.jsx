@@ -49,10 +49,22 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
     training_date: new Date().toISOString().split("T")[0],
     trainer_name: currentUser?.profile?.full_name || "",
     participants: "",
-    topic: "",
-    hours_used: "",
+    topics: "",
+    start_time: "08:00",
+    end_time: "10:00",
+    use_vehicle: false,
     notes: "",
   });
+
+  // Auto calculate hours from start/end time
+  const calcHours = (start, end) => {
+    if (!start || !end) return 0;
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+    const diff = (eh * 60 + em) - (sh * 60 + sm);
+    return diff > 0 ? Math.round(diff / 60 * 10) / 10 : 0;
+  };
+  const hoursFromTime = calcHours(form.start_time, form.end_time);
 
   useEffect(() => { loadSessions(); }, [project.id]);
 
@@ -73,13 +85,13 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
   const totalUsedFromHistory = sessions.reduce((a, s) => a + parseFloat(s.hours_used || 0), 0);
 
   const handleAdd = async () => {
-    if (!form.training_date || !form.trainer_name || !form.participants || !form.topic || !form.hours_used) {
+    if (!form.training_date || !form.trainer_name || !form.participants || !form.topics || !form.start_time || !form.end_time) {
       notify("Semua field wajib diisi kecuali catatan", "error"); return;
     }
-    const hrs = parseFloat(form.hours_used);
-    if (isNaN(hrs) || hrs <= 0) { notify("Jam harus lebih dari 0", "error"); return; }
+    const hrs = calcHours(form.start_time, form.end_time);
+    if (hrs <= 0) { notify("Jam selesai harus lebih dari jam mulai", "error"); return; }
     const remaining = project.trainingHours.total - totalUsedFromHistory;
-    if (hrs > remaining) { notify(`Jam melebihi sisa kuota (${remaining} jam tersisa)`, "error"); return; }
+    if (hrs > remaining) { notify(`Durasi (${hrs} jam) melebihi sisa kuota (${remaining} jam)`, "error"); return; }
 
     setSaving(true);
     try {
@@ -88,8 +100,11 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
         training_date: form.training_date,
         trainer_name: form.trainer_name,
         participants: form.participants,
-        topic: form.topic,
+        topic: form.topics,
         hours_used: hrs,
+        start_time: form.start_time,
+        end_time: form.end_time,
+        use_vehicle: form.use_vehicle,
         notes: form.notes,
         created_by: currentUser?.id || null,
       };
@@ -101,7 +116,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
       await onUpdateHours(project.trainingHours.total, newUsed);
       await onSave({ ...project, trainingHours: { ...project.trainingHours, used: newUsed } });
 
-      setForm({ training_date: new Date().toISOString().split("T")[0], trainer_name: currentUser?.profile?.full_name || "", participants: "", topic: "", hours_used: "", notes: "" });
+      setForm({ training_date: new Date().toISOString().split("T")[0], trainer_name: currentUser?.profile?.full_name || "", participants: "", topics: "", start_time: "08:00", end_time: "10:00", use_vehicle: false, notes: "" });
       setShowForm(false);
       notify(`Sesi training berhasil dicatat! ${hrs} jam dikurangi dari kuota.`);
     } catch (e) { notify(e.message, "error"); }
@@ -186,30 +201,78 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
               ) : (
                 <div style={{ ...MINI, borderColor: "#1d4ed8" }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "#e2e8f0", marginBottom: 14 }}>📝 Catat Sesi Training Baru</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-                    <div>
-                      <label style={{ fontSize: 11, color: "#64748b" }}>Tanggal Training *</label>
-                      <input type="date" style={INP} value={form.training_date} onChange={e => setForm(f => ({ ...f, training_date: e.target.value }))} />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 12 }}>
+                    {/* Row 1: Tanggal & Trainer */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      <div>
+                        <label style={{ fontSize: 11, color: "#64748b" }}>Tanggal Training *</label>
+                        <input type="date" style={INP} value={form.training_date} onChange={e => setForm(f => ({ ...f, training_date: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: "#64748b" }}>Nama Trainer *</label>
+                        <input type="text" style={INP} placeholder="Nama yang melatih" value={form.trainer_name} onChange={e => setForm(f => ({ ...f, trainer_name: e.target.value }))} />
+                      </div>
                     </div>
-                    <div>
-                      <label style={{ fontSize: 11, color: "#64748b" }}>Nama Trainer *</label>
-                      <input type="text" style={INP} placeholder="Nama yang melatih" value={form.trainer_name} onChange={e => setForm(f => ({ ...f, trainer_name: e.target.value }))} />
+
+                    {/* Row 2: Jam Mulai & Selesai + durasi otomatis */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                      <div>
+                        <label style={{ fontSize: 11, color: "#64748b" }}>Jam Mulai *</label>
+                        <input type="time" style={INP} value={form.start_time} onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: "#64748b" }}>Jam Selesai *</label>
+                        <input type="time" style={INP} value={form.end_time} onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))} />
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                        <label style={{ fontSize: 11, color: "#64748b", marginBottom: 4 }}>Durasi</label>
+                        <div style={{ background: "#060d1a", border: "1px solid #1e293b", borderRadius: 8, padding: "8px 12px", fontSize: 14, fontWeight: 700, color: hoursFromTime > 0 ? "#38bdf8" : "#334155" }}>
+                          {hoursFromTime > 0 ? `${hoursFromTime} jam` : "—"}
+                          {hoursFromTime > remaining && <span style={{ fontSize: 11, color: "#ef4444", marginLeft: 6 }}>melebihi kuota!</span>}
+                        </div>
+                      </div>
                     </div>
+                    <div style={{ fontSize: 11, color: "#475569", marginTop: -6 }}>
+                      Sisa kuota: <span style={{ color: remaining <= 0 ? "#ef4444" : "#f59e0b", fontWeight: 600 }}>{remaining} jam</span>
+                    </div>
+
+                    {/* Row 3: Peserta */}
                     <div>
                       <label style={{ fontSize: 11, color: "#64748b" }}>Peserta Training *</label>
                       <input type="text" style={INP} placeholder="Nama peserta, dipisah koma" value={form.participants} onChange={e => setForm(f => ({ ...f, participants: e.target.value }))} />
                     </div>
+
+                    {/* Row 4: Materi (textarea banyak baris) */}
                     <div>
-                      <label style={{ fontSize: 11, color: "#64748b" }}>Jam Digunakan * <span style={{ color: "#f59e0b" }}>(sisa: {remaining} jam)</span></label>
-                      <input type="number" step="0.5" min="0.5" max={remaining} style={INP} placeholder="Contoh: 2.5" value={form.hours_used} onChange={e => setForm(f => ({ ...f, hours_used: e.target.value }))} />
+                      <label style={{ fontSize: 11, color: "#64748b" }}>Materi / Topik Training *</label>
+                      <textarea style={{ ...INP, resize: "vertical", lineHeight: 1.6 }} rows={4}
+                        placeholder={"Contoh:
+1. Modul Penjualan
+2. Modul Pembelian
+3. Laporan Stok"}
+                        value={form.topics} onChange={e => setForm(f => ({ ...f, topics: e.target.value }))} />
                     </div>
-                    <div style={{ gridColumn: "1 / -1" }}>
-                      <label style={{ fontSize: 11, color: "#64748b" }}>Materi / Topik *</label>
-                      <input type="text" style={INP} placeholder="Contoh: Modul Penjualan & Pembelian" value={form.topic} onChange={e => setForm(f => ({ ...f, topic: e.target.value }))} />
+
+                    {/* Row 5: Kendaraan pribadi toggle */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#060d1a", border: "1px solid #1e293b", borderRadius: 8, padding: "10px 14px" }}>
+                      <div>
+                        <div style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 600 }}>🚗 Menggunakan Kendaraan Pribadi</div>
+                        <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>Trainer menggunakan kendaraan pribadi untuk kunjungan</div>
+                      </div>
+                      <div onClick={() => setForm(f => ({ ...f, use_vehicle: !f.use_vehicle }))} style={{
+                        width: 48, height: 26, borderRadius: 999, cursor: "pointer", transition: "background 0.2s", flexShrink: 0,
+                        background: form.use_vehicle ? "#10b981" : "#1e293b", position: "relative",
+                      }}>
+                        <div style={{ position: "absolute", top: 3, left: form.use_vehicle ? 24 : 3, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+                      </div>
                     </div>
-                    <div style={{ gridColumn: "1 / -1" }}>
+
+                    {/* Row 6: Catatan */}
+                    <div>
                       <label style={{ fontSize: 11, color: "#64748b" }}>Catatan Tambahan</label>
-                      <textarea style={{ ...INP, resize: "vertical" }} rows={2} placeholder="Opsional — kendala, tindak lanjut, dll" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+                      <textarea style={{ ...INP, resize: "vertical" }} rows={2}
+                        placeholder="Opsional — kendala, tindak lanjut, dll"
+                        value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 10 }}>
@@ -238,26 +301,34 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                 <div key={s.id} style={{ ...MINI, borderLeft: "3px solid #1d4ed8" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      {/* Header row */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>{s.topic}</span>
-                        <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700, background: "#0c2a3f", color: "#38bdf8" }}>⏱ {s.hours_used} jam</span>
+                      {/* Header */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                        <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700, background: "#0c2a3f", color: "#38bdf8" }}>⏱ {s.hours_used} jam</span>
+                        {s.start_time && s.end_time && (
+                          <span style={{ fontSize: 11, color: "#475569" }}>🕐 {s.start_time} – {s.end_time}</span>
+                        )}
                         <span style={{ fontSize: 11, color: "#475569" }}>📅 {s.training_date}</span>
+                        {s.use_vehicle && <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: "#052e16", color: "#10b981" }}>🚗 Kendaraan Pribadi</span>}
                       </div>
-                      {/* Details */}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                      {/* Details grid */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
                         <div style={{ fontSize: 12, color: "#64748b" }}>
                           <span style={{ color: "#475569" }}>👤 Trainer: </span>{s.trainer_name}
                         </div>
                         <div style={{ fontSize: 12, color: "#64748b" }}>
                           <span style={{ color: "#475569" }}>👥 Peserta: </span>{s.participants}
                         </div>
-                        {s.notes && (
-                          <div style={{ fontSize: 12, color: "#64748b", gridColumn: "1 / -1" }}>
-                            <span style={{ color: "#475569" }}>📝 </span>{s.notes}
-                          </div>
-                        )}
                       </div>
+                      {/* Topic - multiline */}
+                      <div style={{ background: "#060d1a", border: "1px solid #1e293b", borderRadius: 6, padding: "8px 10px", marginBottom: s.notes ? 8 : 0 }}>
+                        <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>📚 Materi Training:</div>
+                        <div style={{ fontSize: 12, color: "#94a3b8", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{s.topic}</div>
+                      </div>
+                      {s.notes && (
+                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 6 }}>
+                          <span style={{ color: "#475569" }}>📝 </span>{s.notes}
+                        </div>
+                      )}
                     </div>
                     {/* Delete button - admin only */}
                     {canDelete && (
