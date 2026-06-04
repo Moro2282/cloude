@@ -214,7 +214,19 @@ function ProjectCard({ project, onSelect }) {
           <div style={{ fontSize: 16, fontWeight: 700, color: "#f1f5f9", marginBottom: 2 }}>{project.name}</div>
           <div style={{ fontSize: 12, color: "#475569" }}>{project.client} · {project.clientEmail}</div>
         </div>
-        <SupportBadge days={daysLeft} />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+          <SupportBadge days={daysLeft} />
+          {project.server && project.server.active && project.server.endDate && (() => {
+            const sd = getDaysRemaining(project.server.endDate);
+            return (
+              <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 999, fontWeight: 700,
+                background: sd <= 30 ? "#450a0a" : sd <= 90 ? "#451a03" : "#0a1525",
+                color: sd <= 30 ? "#ef4444" : sd <= 90 ? "#f59e0b" : "#38bdf8",
+                border: "1px solid", borderColor: sd <= 30 ? "#ef444433" : sd <= 90 ? "#f59e0b33" : "#38bdf833"
+              }}>🖥 Server: {sd <= 0 ? "Expired" : `${sd}h lagi`}</span>
+            );
+          })()}
+        </div>
       </div>
       <StageIndicator stages={project.implementation.stages} />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16 }}>
@@ -233,11 +245,7 @@ function ProjectCard({ project, onSelect }) {
           </div>
         </div>
       </div>
-      <div style={{ marginTop: 12, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        {project.server && project.server.active ? (() => {
-          const sd = getDaysRemaining(project.server.endDate);
-          return <span style={{ fontSize:11, padding:"3px 10px", borderRadius:999, fontWeight:700, background: sd<=30?"#450a0a":sd<=90?"#451a03":"#0a1525", color: sd<=30?"#ef4444":sd<=90?"#f59e0b":"#38bdf8", border:"1px solid", borderColor: sd<=30?"#ef444433":sd<=90?"#f59e0b33":"#38bdf833" }}>🖥 Server: {sd<=0?"Expired":`${sd}h lagi`}</span>;
-        })() : <span style={{ fontSize:11, color:"#1e293b" }}>🖥 No Server</span>}
+      <div style={{ marginTop: 12, textAlign: "right" }}>
         <span style={{ fontSize: 11, color: "#334155" }}>Klik untuk detail & edit →</span>
       </div>
     </div>
