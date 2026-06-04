@@ -246,10 +246,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                     <div>
                       <label style={{ fontSize: 11, color: "#64748b" }}>Materi / Topik Training *</label>
                       <textarea style={{ ...INP, resize: "vertical", lineHeight: 1.6 }} rows={4}
-                        placeholder={"Contoh:
-1. Modul Penjualan
-2. Modul Pembelian
-3. Laporan Stok"}
+                        placeholder="Contoh: 1. Modul Penjualan, 2. Modul Pembelian, 3. Laporan Stok"
                         value={form.topics} onChange={e => setForm(f => ({ ...f, topics: e.target.value }))} />
                     </div>
 
