@@ -940,7 +940,7 @@ export default function App() {
           </div>
           <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
             <button onClick={()=>setShowLaporan(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #059669", background:"#052e16", color:"#10b981", cursor:"pointer", fontWeight:600, fontSize:13 }}>📊 Laporan</button>
-            {isAdmin && <button onClick={()=>setShowKomisi(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #f59e0b", background:"#451a03", color:"#f59e0b", cursor:"pointer", fontWeight:600, fontSize:13 }}>💰 Komisi</button>}
+            {isEditor && <button onClick={()=>setShowKomisi(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #f59e0b", background:"#451a03", color:"#f59e0b", cursor:"pointer", fontWeight:600, fontSize:13 }}>💰 Komisi</button>}
             {canEdit && <button onClick={()=>setShowAdd(true)} style={{ ...BTN, padding:"10px 20px", fontSize:14 }}>+ Proyek Baru</button>}
             {isAdmin && (
               <button onClick={()=>setShowUserMgr(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #7c3aed", background:"#1e1040", color:"#a78bfa", cursor:"pointer", fontWeight:600, fontSize:13 }}>👥 Users</button>
@@ -1100,7 +1100,7 @@ export default function App() {
       {showAdd && canEdit && <AddProjectModal onClose={()=>setShowAdd(false)} onAdd={handleAddProject} />}
       {showLaporan && <LaporanModal projects={projects} onClose={()=>setShowLaporan(false)} />}
       {showUserMgr && isAdmin && <UserManager currentUser={currentUser} onClose={()=>setShowUserMgr(false)} />}
-      {showKomisi && isAdmin && <KomisiPage onClose={()=>setShowKomisi(false)} />}
+      {showKomisi && isEditor && <KomisiPage onClose={()=>setShowKomisi(false)} />}
     </div>
   );
 }
