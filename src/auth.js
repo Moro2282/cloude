@@ -125,10 +125,60 @@ export async function updateUserRole(userId, role) {
 }
 
 export async function deleteUser(userId) {
-  // Delete from user_profiles (cascade will handle auth.users via admin API)
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}`,
     { method: "DELETE", headers: { ...HEADERS, "Authorization": `Bearer ${getSession()?.access_token}` } }
   );
   if (!res.ok) throw new Error("Gagal hapus user");
+}
+
+// Change own password (user must be logged in)
+export async function changePassword(newPassword) {
+  const s = getSession();
+  if (!s) throw new Error("Tidak ada sesi aktif");
+  const res = await fetch(`${AUTH}/user`, {
+    method: "PUT",
+    headers: { ...HEADERS, "Authorization": `Bearer ${s.access_token}` },
+    body: JSON.stringify({ password: newPassword }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error_description || data.msg || "Gagal ganti password");
+  return data;
+}
+
+// Admin reset password for another user via signup (re-invite)
+// Since we cannot call admin API from browser, we use signUp with same email
+// Better: update via Supabase admin endpoint using service role - but we use workaround
+// Practical approach: admin creates new session for target user
+export async function adminResetPassword(email, newPassword) {
+  // We use the signUp endpoint with upsert approach
+  // This won't work without service_role key
+  // So we store a pending reset that user sees on next login
+  // Practical solution: use Supabase dashboard or store temp password
+  // For browser-only app, we create a special reset record
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/password_resets`, {
+    method: "POST",
+    headers: { ...HEADERS, "Authorization": `Bearer ${getSession()?.access_token}`, "Prefer": "return=representation" },
+    body: JSON.stringify({ email, new_password: newPassword, created_by: getSession()?.user?.id, used: false }),
+  });
+  if (!res.ok) throw new Error("Gagal simpan reset password");
+  return res.json();
+}
+
+export async function checkPendingReset(email) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/password_resets?email=eq.${encodeURIComponent(email)}&used=eq.false&order=created_at.desc&limit=1`,
+    { headers: HEADERS }
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data?.[0] || null;
+}
+
+export async function markResetUsed(id) {
+  await fetch(`${SUPABASE_URL}/rest/v1/password_resets?id=eq.${id}`, {
+    method: "PATCH",
+    headers: { ...HEADERS, "Authorization": `Bearer ${getSession()?.access_token}` },
+    body: JSON.stringify({ used: true }),
+  });
 }
