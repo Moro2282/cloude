@@ -4,9 +4,11 @@ import * as XLSX from "xlsx";
 const SUPABASE_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
 
-const TARIF_INTERNAL = 100000;
-const TARIF_PARTNER  = 150000;
-const TARIF_KENDARAAN = 100000;
+const TARIF_INTERNAL   = 100000;
+const TARIF_PARTNER    = 150000;
+const TARIF_ONSITE_1   = 100000; // 1 teknisi
+const TARIF_ONSITE_2   = 70000;  // 2 teknisi per orang
+const TARIF_KENDARAAN  = 100000;
 
 function getToken() {
   try { return JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPABASE_KEY; }
@@ -43,10 +45,23 @@ async function fetchAllSessions() {
 
 function calcKomisi(session) {
   const jam = parseFloat(session.hours_used || 0);
-  const tarifJam = session.is_partner ? TARIF_PARTNER : TARIF_INTERNAL;
+  let tarifJam, tarifLabel;
+  
+  if (session.session_type === "onsite") {
+    const count = session.technician_count || 1;
+    tarifJam = count === 2 ? TARIF_ONSITE_2 : TARIF_ONSITE_1;
+    tarifLabel = count === 2 ? "Onsite 2 Teknisi" : "Onsite 1 Teknisi";
+  } else {
+    tarifJam = session.is_partner ? TARIF_PARTNER : TARIF_INTERNAL;
+    tarifLabel = session.is_partner ? "Partner" : "Internal";
+  }
+  
   const komisiJam = jam * tarifJam;
+  // For onsite with 2 teknisi, total = tarif x jumlah teknisi x jam
+  const multiplier = (session.session_type === "onsite" && session.technician_count === 2) ? 2 : 1;
+  const komisiTotal = jam * tarifJam * multiplier;
   const komisiKendaraan = session.use_vehicle ? TARIF_KENDARAAN : 0;
-  return { jam, tarifJam, komisiJam, komisiKendaraan, total: komisiJam + komisiKendaraan };
+  return { jam, tarifJam, tarifLabel, komisiJam: komisiTotal, komisiKendaraan, total: komisiTotal + komisiKendaraan };
 }
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
@@ -175,7 +190,7 @@ export default function KomisiPage({ onClose }) {
             </button>
             <h1 style={{ fontSize:28, fontWeight:900, color:"#f1f5f9", margin:0 }}>💰 Rekap Komisi Training</h1>
             <div style={{ fontSize:13, color:"#475569", marginTop:6 }}>
-              Tarif: Internal <span style={{ color:"#38bdf8", fontWeight:600 }}>Rp 100rb/jam</span> · Partner <span style={{ color:"#a78bfa", fontWeight:600 }}>Rp 150rb/jam</span> · Kendaraan <span style={{ color:"#10b981", fontWeight:600 }}>Rp 100rb/kunjungan</span>
+              Training: Internal <span style={{ color:"#38bdf8", fontWeight:600 }}>Rp 100rb/jam</span> · Partner <span style={{ color:"#a78bfa", fontWeight:600 }}>Rp 150rb/jam</span> &nbsp;|&nbsp; Onsite: 1 Teknisi <span style={{ color:"#10b981", fontWeight:600 }}>Rp 100rb/jam</span> · 2 Teknisi <span style={{ color:"#f59e0b", fontWeight:600 }}>Rp 70rb/jam/orang</span> · Kendaraan <span style={{ color:"#10b981", fontWeight:600 }}>+Rp 100rb</span>
             </div>
           </div>
           <button onClick={handleExport} disabled={filtered.length===0} style={{
@@ -315,6 +330,7 @@ export default function KomisiPage({ onClose }) {
                       {t.sessions.map((s,i) => (
                         <div key={i} style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 10px", background:"#060d1a", borderRadius:8, flexWrap:"wrap" }}>
                           <span style={{ fontSize:11, color:"#475569", minWidth:80 }}>{fmtDate(s.training_date)}</span>
+                          <span style={{ fontSize:11, padding:"1px 6px", borderRadius:4, background: s.session_type==="onsite"?"#052e16":"#0c2a3f", color: s.session_type==="onsite"?"#10b981":"#38bdf8" }}>{s.session_type==="onsite"?"Onsite":"Training"}</span>
                           <span style={{ fontSize:12, color:"#94a3b8", flex:1 }}>{s.projects?.name || "-"} — {s.topic?.split("\n")[0]}</span>
                           <span style={{ fontSize:11, color:"#f59e0b", minWidth:50 }}>{s.jam} jam</span>
                           {s.use_vehicle && <span style={{ fontSize:10, color:"#10b981" }}>🚗 +{fmtRp(TARIF_KENDARAAN)}</span>}
@@ -335,7 +351,7 @@ export default function KomisiPage({ onClose }) {
             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
               <thead>
                 <tr style={{ background:"#0a1525" }}>
-                  {["Tanggal","Trainer","Status","Proyek","Peserta","Jam","Tarif/Jam","Komisi Jam","Kendaraan","Total"].map(h=>(
+                  {["Tanggal","Trainer","Jenis","Status","Proyek","Peserta","Jam","Tarif/Jam","Komisi","Kendaraan","Total"].map(h=>(
                     <th key={h} style={{ padding:"10px 12px", textAlign:"left", fontSize:11, color:"#475569", fontWeight:600, textTransform:"uppercase", letterSpacing:0.8, borderBottom:"1px solid #1e293b", whiteSpace:"nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -348,14 +364,20 @@ export default function KomisiPage({ onClose }) {
                       <td style={{ padding:"10px 12px", color:"#94a3b8", whiteSpace:"nowrap" }}>{fmtDate(s.training_date)}</td>
                       <td style={{ padding:"10px 12px", color:"#e2e8f0", fontWeight:600 }}>{s.trainer_name}</td>
                       <td style={{ padding:"10px 12px" }}>
-                        <span style={{ padding:"2px 8px", borderRadius:999, fontSize:11, fontWeight:600, background:s.is_partner?"#1e1040":"#0c2a3f", color:s.is_partner?"#a78bfa":"#38bdf8" }}>
-                          {s.is_partner?"Partner":"Internal"}
+                        <span style={{ padding:"2px 8px", borderRadius:999, fontSize:11, fontWeight:600, background: s.session_type==="onsite"?"#052e16":"#0c2a3f", color: s.session_type==="onsite"?"#10b981":"#38bdf8" }}>
+                          {s.session_type==="onsite" ? "🔧 Onsite" : "📚 Training"}
                         </span>
                       </td>
+                      <td style={{ padding:"10px 12px" }}>
+                        {s.session_type === "onsite"
+                          ? <span style={{ fontSize:11, color: s.technician_count===2?"#f59e0b":"#10b981" }}>{s.technician_count===2?"👥 2 Teknisi":"👤 1 Teknisi"}</span>
+                          : <span style={{ padding:"2px 8px", borderRadius:999, fontSize:11, fontWeight:600, background:s.is_partner?"#1e1040":"#0c2a3f", color:s.is_partner?"#a78bfa":"#38bdf8" }}>{s.is_partner?"Partner":"Internal"}</span>
+                        }
+                      </td>
                       <td style={{ padding:"10px 12px", color:"#94a3b8" }}>{s.projects?.name||"-"}</td>
-                      <td style={{ padding:"10px 12px", color:"#94a3b8", maxWidth:150, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.participants}</td>
+                      <td style={{ padding:"10px 12px", color:"#94a3b8", maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.participants}</td>
                       <td style={{ padding:"10px 12px", color:"#f59e0b", fontWeight:600 }}>{k.jam}</td>
-                      <td style={{ padding:"10px 12px", color:"#475569" }}>{fmtRp(k.tarifJam)}</td>
+                      <td style={{ padding:"10px 12px", color:"#475569", fontSize:11 }}>{fmtRp(k.tarifJam)}{s.session_type==="onsite"&&s.technician_count===2?<span style={{color:"#f59e0b"}}> ×2</span>:""}</td>
                       <td style={{ padding:"10px 12px", color:"#38bdf8", fontWeight:600 }}>{fmtRp(k.komisiJam)}</td>
                       <td style={{ padding:"10px 12px", color: s.use_vehicle?"#10b981":"#334155" }}>
                         {s.use_vehicle ? fmtRp(TARIF_KENDARAAN) : "—"}
