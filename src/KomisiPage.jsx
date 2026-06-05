@@ -155,53 +155,75 @@ export default function KomisiPage({ onClose }) {
 
   // Export Excel
   const handleExport = () => {
-    const wb = XLSX.utils.book_new();
-    const tgl = `${fmtDate(dateFrom)} s/d ${fmtDate(dateTo)}`;
+    try {
+      const wb = XLSX.utils.book_new();
+      const tgl = `${fmtDate(dateFrom)} s/d ${fmtDate(dateTo)}`;
+      const today = new Date().toLocaleDateString("id-ID");
 
-    // Sheet 1 — Ringkasan per Trainer
-    const ws1Rows = [
-      [`REKAP KOMISI TRAINING — ${tgl}`], [`Digenerate: ${new Date().toLocaleDateString("id-ID")}`], [],
-      ["No", "Nama Trainer", "Status", "Jumlah Sesi", "Total Proyek", "Total Jam", "Tarif/Jam", "Komisi Jam", "Komisi Kendaraan", "Total Komisi"],
-    ];
-    trainerList.forEach((name, i) => {
-      const t = byTrainer[name];
-      const isPartner = t.sessions[0]?.is_partner;
-      ws1Rows.push([
-        i+1, name, isPartner ? "Partner" : "Internal",
-        t.sessions.length, t.projects.size, t.totalJam,
-        isPartner ? fmtRp(TARIF_PARTNER) : fmtRp(TARIF_INTERNAL),
-        fmtRp(t.totalKomisiJam), fmtRp(t.totalKendaraan), fmtRp(t.totalKomisi),
-      ]);
-    });
-    ws1Rows.push([]);
-    ws1Rows.push(["", "TOTAL", "", grandTotal.sesi, "", grandTotal.jam, "", "", fmtRp(grandTotal.kendaraan), fmtRp(grandTotal.komisi)]);
-    const ws1 = XLSX.utils.aoa_to_sheet(ws1Rows);
-    ws1["!cols"] = [{wch:4},{wch:22},{wch:10},{wch:12},{wch:14},{wch:10},{wch:16},{wch:18},{wch:18},{wch:18}];
-    XLSX.utils.book_append_sheet(wb, ws1, "Ringkasan Komisi");
+      // Sheet 1 — Ringkasan per Trainer
+      const ws1Rows = [
+        [`REKAP KOMISI TRAINING — ${tgl}`], [`Digenerate: ${today}`], [],
+        ["No", "Nama", "Status", "Sesi", "Proyek", "Total Jam", "Komisi Jam", "Komisi Kendaraan", "Total Komisi"],
+      ];
+      trainerList.forEach((name, i) => {
+        const t = byTrainer[name];
+        ws1Rows.push([
+          i+1, name,
+          t.isPartner ? "Partner" : "Internal",
+          t.sessions.length,
+          [...t.projects].join(", "),
+          t.totalJam,
+          fmtRp(t.totalKomisiJam),
+          fmtRp(t.totalKendaraan),
+          fmtRp(t.totalKomisi),
+        ]);
+      });
+      ws1Rows.push([]);
+      ws1Rows.push(["", "TOTAL", "", grandTotal.sesi, "", grandTotal.jam, "", fmtRp(grandTotal.kendaraan), fmtRp(grandTotal.komisi)]);
+      const ws1 = XLSX.utils.aoa_to_sheet(ws1Rows);
+      ws1["!cols"] = [{wch:4},{wch:24},{wch:10},{wch:8},{wch:30},{wch:10},{wch:18},{wch:18},{wch:18}];
+      XLSX.utils.book_append_sheet(wb, ws1, "Ringkasan Komisi");
 
-    // Sheet 2 — Detail per Sesi
-    const ws2Rows = [
-      [`DETAIL SESI TRAINING — ${tgl}`], [`Digenerate: ${new Date().toLocaleDateString("id-ID")}`], [],
-      ["No", "Tanggal", "Trainer", "Status", "Proyek", "Klien", "Peserta", "Materi", "Jam Mulai", "Jam Selesai", "Jam", "Tarif/Jam", "Komisi Jam", "Kendaraan", "Total Komisi"],
-    ];
-    filtered.forEach((s, i) => {
-      const k = calcKomisi(s);
-      ws2Rows.push([
-        i+1, s.training_date, s.trainer_name,
-        s.is_partner ? "Partner" : "Internal",
-        s.projects?.name || "-", s.projects?.client || "-",
-        s.participants, s.topic,
-        s.start_time || "-", s.end_time || "-",
-        k.jam, fmtRp(k.tarifJam), fmtRp(k.komisiJam),
-        s.use_vehicle ? fmtRp(TARIF_KENDARAAN) : "-",
-        fmtRp(k.total),
-      ]);
-    });
-    const ws2 = XLSX.utils.aoa_to_sheet(ws2Rows);
-    ws2["!cols"] = [{wch:4},{wch:12},{wch:20},{wch:10},{wch:22},{wch:18},{wch:20},{wch:35},{wch:10},{wch:10},{wch:6},{wch:14},{wch:16},{wch:16},{wch:16}];
-    XLSX.utils.book_append_sheet(wb, ws2, "Detail Sesi");
+      // Sheet 2 — Detail per Sesi
+      const ws2Rows = [
+        [`DETAIL SESI TRAINING — ${tgl}`], [`Digenerate: ${today}`], [],
+        ["No","Tanggal","Jenis","Orang 1","Status 1","Tarif 1","Orang 2","Status 2","Tarif 2","Proyek","Peserta","Materi","Mulai","Selesai","Jam","Komisi Jam","Kendaraan","Total"],
+      ];
+      filtered.forEach((s, i) => {
+        const k = calcKomisi(s);
+        ws2Rows.push([
+          i+1,
+          s.training_date,
+          s.session_type === "onsite" ? "Onsite IT" : "Training",
+          s.trainer_name,
+          s.session_type === "onsite" ? "Internal" : (s.is_partner ? "Partner" : "Internal"),
+          fmtRp(k.p1Tarif) + "/jam",
+          k.hasBuddy ? s.person2_name : "-",
+          k.hasBuddy ? (s.session_type === "onsite" ? "Internal" : (s.person2_is_partner ? "Partner" : "Internal")) : "-",
+          k.hasBuddy ? fmtRp(k.p2Tarif) + "/jam" : "-",
+          s.projects?.name || "-",
+          s.participants || "-",
+          (s.topic || "-").replace(/
+/g, "; "),
+          s.start_time || "-",
+          s.end_time || "-",
+          k.jam,
+          fmtRp(k.komisiJam),
+          fmtRp(k.komisiKendaraan),
+          fmtRp(k.total),
+        ]);
+      });
+      ws2Rows.push([]);
+      ws2Rows.push(["","TOTAL","","","","","","","","","","","","",grandTotal.jam,"",fmtRp(grandTotal.kendaraan),fmtRp(grandTotal.komisi)]);
+      const ws2 = XLSX.utils.aoa_to_sheet(ws2Rows);
+      ws2["!cols"] = [{wch:4},{wch:12},{wch:10},{wch:20},{wch:10},{wch:14},{wch:20},{wch:10},{wch:14},{wch:22},{wch:20},{wch:30},{wch:8},{wch:8},{wch:6},{wch:16},{wch:16},{wch:16}];
+      XLSX.utils.book_append_sheet(wb, ws2, "Detail Sesi");
 
-    XLSX.writeFile(wb, `Komisi_Training_${dateFrom}_${dateTo}.xlsx`);
+      XLSX.writeFile(wb, `Komisi_Training_${dateFrom}_${dateTo}.xlsx`);
+    } catch(err) {
+      alert("Export gagal: " + err.message);
+      console.error("Export error:", err);
+    }
   };
 
   const INP = { background:"#0c1628", border:"1px solid #1e293b", borderRadius:8, padding:"7px 10px", color:"#e2e8f0", fontSize:13, outline:"none", fontFamily:"inherit" };
