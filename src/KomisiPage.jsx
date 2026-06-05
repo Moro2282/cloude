@@ -203,8 +203,7 @@ export default function KomisiPage({ onClose }) {
           k.hasBuddy ? fmtRp(k.p2Tarif) + "/jam" : "-",
           s.projects?.name || "-",
           s.participants || "-",
-          (s.topic || "-").replace(/
-/g, "; "),
+          (s.topic || "-").split("\n").join("; "),
           s.start_time || "-",
           s.end_time || "-",
           k.jam,
