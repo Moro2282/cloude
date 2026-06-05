@@ -43,25 +43,47 @@ async function fetchAllSessions() {
   return res.json();
 }
 
+function getTarifPerson(isPartner, hasBuddy) {
+  // Training tariff rules:
+  // Solo internal: 100rb, Solo partner: 150rb
+  // With buddy (either): internal 70rb, partner 100rb
+  if (!hasBuddy) return isPartner ? TARIF_PARTNER : TARIF_INTERNAL;
+  return isPartner ? 100000 : 70000;
+}
+
 function calcKomisi(session) {
   const jam = parseFloat(session.hours_used || 0);
-  let tarifJam, tarifLabel;
+  const hasBuddy = session.has_second_person && session.person2_name;
   
+  let p1Tarif, p2Tarif, p1Komisi, p2Komisi, p1Vehicle, p2Vehicle;
+
   if (session.session_type === "onsite") {
-    const count = session.technician_count || 1;
-    tarifJam = count === 2 ? TARIF_ONSITE_2 : TARIF_ONSITE_1;
-    tarifLabel = count === 2 ? "Onsite 2 Teknisi" : "Onsite 1 Teknisi";
+    p1Tarif = hasBuddy ? TARIF_ONSITE_2 : TARIF_ONSITE_1;
+    p2Tarif = hasBuddy ? TARIF_ONSITE_2 : 0;
+    p1Vehicle = session.use_vehicle ? TARIF_KENDARAAN : 0;
+    p2Vehicle = (hasBuddy && session.person2_vehicle) ? TARIF_KENDARAAN : 0;
   } else {
-    tarifJam = session.is_partner ? TARIF_PARTNER : TARIF_INTERNAL;
-    tarifLabel = session.is_partner ? "Partner" : "Internal";
+    p1Tarif = getTarifPerson(session.is_partner, hasBuddy);
+    p2Tarif = hasBuddy ? getTarifPerson(session.person2_is_partner, true) : 0;
+    p1Vehicle = session.use_vehicle ? TARIF_KENDARAAN : 0;
+    p2Vehicle = (hasBuddy && session.person2_vehicle) ? TARIF_KENDARAAN : 0;
   }
+
+  p1Komisi = jam * p1Tarif;
+  p2Komisi = hasBuddy ? jam * p2Tarif : 0;
   
-  const komisiJam = jam * tarifJam;
-  // For onsite with 2 teknisi, total = tarif x jumlah teknisi x jam
-  const multiplier = (session.session_type === "onsite" && session.technician_count === 2) ? 2 : 1;
-  const komisiTotal = jam * tarifJam * multiplier;
-  const komisiKendaraan = session.use_vehicle ? TARIF_KENDARAAN : 0;
-  return { jam, tarifJam, tarifLabel, komisiJam: komisiTotal, komisiKendaraan, total: komisiTotal + komisiKendaraan };
+  const totalKomisiJam = p1Komisi + p2Komisi;
+  const totalKendaraan = p1Vehicle + p2Vehicle;
+
+  return {
+    jam,
+    p1Tarif, p2Tarif, p1Komisi, p2Komisi,
+    p1Vehicle, p2Vehicle,
+    komisiJam: totalKomisiJam,
+    komisiKendaraan: totalKendaraan,
+    total: totalKomisiJam + totalKendaraan,
+    hasBuddy,
+  };
 }
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
@@ -100,16 +122,25 @@ export default function KomisiPage({ onClose }) {
 
   // Group by trainer
   const byTrainer = {};
+  const addToTrainer = (name, isPartner, komisiJam, kendaraan, jam, projectName, session, k) => {
+    if (!byTrainer[name]) byTrainer[name] = { sessions: [], totalJam: 0, totalKomisiJam: 0, totalKendaraan: 0, totalKomisi: 0, projects: new Set(), isPartner };
+    byTrainer[name].sessions.push({ ...session, ...k, _displayName: name, _isPartner: isPartner });
+    byTrainer[name].totalJam        += jam;
+    byTrainer[name].totalKomisiJam  += komisiJam;
+    byTrainer[name].totalKendaraan  += kendaraan;
+    byTrainer[name].totalKomisi     += komisiJam + kendaraan;
+    byTrainer[name].projects.add(projectName);
+  };
+
   filtered.forEach(s => {
-    const name = s.trainer_name;
-    if (!byTrainer[name]) byTrainer[name] = { sessions: [], totalJam: 0, totalKomisiJam: 0, totalKendaraan: 0, totalKomisi: 0, projects: new Set() };
     const k = calcKomisi(s);
-    byTrainer[name].sessions.push({ ...s, ...k });
-    byTrainer[name].totalJam        += k.jam;
-    byTrainer[name].totalKomisiJam  += k.komisiJam;
-    byTrainer[name].totalKendaraan  += k.komisiKendaraan;
-    byTrainer[name].totalKomisi     += k.total;
-    byTrainer[name].projects.add(s.projects?.name || s.project_id);
+    const proj = s.projects?.name || s.project_id;
+    // Person 1
+    addToTrainer(s.trainer_name, s.is_partner, k.p1Komisi, k.p1Vehicle, k.jam, proj, s, k);
+    // Person 2 (separate row in trainer summary)
+    if (k.hasBuddy && s.person2_name) {
+      addToTrainer(s.person2_name, s.person2_is_partner, k.p2Komisi, k.p2Vehicle, k.jam, proj, s, k);
+    }
   });
 
   const trainerList = Object.keys(byTrainer).sort();
@@ -377,10 +408,18 @@ export default function KomisiPage({ onClose }) {
                       <td style={{ padding:"10px 12px", color:"#94a3b8" }}>{s.projects?.name||"-"}</td>
                       <td style={{ padding:"10px 12px", color:"#94a3b8", maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.participants}</td>
                       <td style={{ padding:"10px 12px", color:"#f59e0b", fontWeight:600 }}>{k.jam}</td>
-                      <td style={{ padding:"10px 12px", color:"#475569", fontSize:11 }}>{fmtRp(k.tarifJam)}{s.session_type==="onsite"&&s.technician_count===2?<span style={{color:"#f59e0b"}}> ×2</span>:""}</td>
-                      <td style={{ padding:"10px 12px", color:"#38bdf8", fontWeight:600 }}>{fmtRp(k.komisiJam)}</td>
-                      <td style={{ padding:"10px 12px", color: s.use_vehicle?"#10b981":"#334155" }}>
-                        {s.use_vehicle ? fmtRp(TARIF_KENDARAAN) : "—"}
+                      <td style={{ padding:"10px 12px", color:"#475569", fontSize:11 }}>
+                        <div>{s.trainer_name}: {fmtRp(k.p1Tarif)}/jam</div>
+                        {k.hasBuddy && <div style={{color:"#94a3b8"}}>{s.person2_name}: {fmtRp(k.p2Tarif)}/jam</div>}
+                      </td>
+                      <td style={{ padding:"10px 12px", color:"#38bdf8", fontWeight:600 }}>
+                        <div>{fmtRp(k.p1Komisi)}</div>
+                        {k.hasBuddy && <div style={{color:"#7dd3fc"}}>{fmtRp(k.p2Komisi)}</div>}
+                      </td>
+                      <td style={{ padding:"10px 12px", color: (s.use_vehicle||s.person2_vehicle)?"#10b981":"#334155" }}>
+                        {s.use_vehicle && <div>{s.trainer_name}: {fmtRp(TARIF_KENDARAAN)}</div>}
+                        {k.hasBuddy && s.person2_vehicle && <div style={{color:"#6ee7b7"}}>{s.person2_name}: {fmtRp(TARIF_KENDARAAN)}</div>}
+                        {!s.use_vehicle && !s.person2_vehicle && "—"}
                       </td>
                       <td style={{ padding:"10px 12px", color:"#10b981", fontWeight:700 }}>{fmtRp(k.total)}</td>
                     </tr>
