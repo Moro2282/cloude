@@ -84,8 +84,10 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
   const [msg, setMsg] = useState(null);
   const [form, setForm] = useState({
     training_date: new Date().toISOString().split("T")[0],
+    session_type: "training", // training | onsite
     trainer_name: currentUser?.profile?.full_name || "",
     is_partner: false,
+    technician_count: 1, // 1 or 2 (onsite only)
     participants: "",
     topics: "",
     start_time: "08:00",
@@ -136,8 +138,10 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
       const newSession = {
         project_id: project.id,
         training_date: form.training_date,
+        session_type: form.session_type,
         trainer_name: form.trainer_name,
-        is_partner: form.is_partner,
+        is_partner: form.session_type === "training" ? form.is_partner : false,
+        technician_count: form.session_type === "onsite" ? form.technician_count : 1,
         participants: form.participants,
         topic: form.topics,
         hours_used: hrs,
@@ -155,7 +159,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
       await onUpdateHours(project.trainingHours.total, newUsed);
       await onSave({ ...project, trainingHours: { ...project.trainingHours, used: newUsed } });
 
-      setForm({ training_date: new Date().toISOString().split("T")[0], trainer_name: currentUser?.profile?.full_name || "", is_partner: false, participants: "", topics: "", start_time: "08:00", end_time: "10:00", use_vehicle: false, notes: "" });
+      setForm({ training_date: new Date().toISOString().split("T")[0], session_type: "training", trainer_name: currentUser?.profile?.full_name || "", is_partner: false, technician_count: 1, participants: "", topics: "", start_time: "08:00", end_time: "10:00", use_vehicle: false, notes: "" });
       setShowForm(false);
       notify(`Sesi training berhasil dicatat! ${hrs} jam dikurangi dari kuota.`);
     } catch (e) { notify(e.message, "error"); }
@@ -241,30 +245,81 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                 <div style={{ ...MINI, borderColor: "#1d4ed8" }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "#e2e8f0", marginBottom: 14 }}>📝 Catat Sesi Training Baru</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 12 }}>
-                    {/* Row 1: Tanggal & Trainer */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                      <div>
-                        <label style={{ fontSize: 11, color: "#64748b" }}>Tanggal Training *</label>
-                        <input type="date" style={INP} value={form.training_date} onChange={e => setForm(f => ({ ...f, training_date: e.target.value }))} />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: 11, color: "#64748b" }}>Nama Trainer *</label>
-                        <input type="text" style={INP} placeholder="Nama yang melatih" value={form.trainer_name} onChange={e => setForm(f => ({ ...f, trainer_name: e.target.value }))} />
+
+                    {/* Session type selector */}
+                    <div>
+                      <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 6 }}>Jenis Sesi *</label>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        {[
+                          ["training", "📚 Training", "#38bdf8", "#0c2a3f", "Pelatihan penggunaan sistem"],
+                          ["onsite", "🔧 Onsite IT", "#10b981", "#052e16", "Kunjungan teknis / support"],
+                        ].map(([val, label, color, bg, desc]) => (
+                          <button key={val} onClick={() => setForm(f => ({ ...f, session_type: val, is_partner: false }))}
+                            style={{ flex: 1, padding: "10px 14px", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer",
+                              border: `1px solid ${form.session_type === val ? color : "#1e293b"}`,
+                              background: form.session_type === val ? bg : "transparent",
+                              color: form.session_type === val ? color : "#475569", transition: "all 0.15s", textAlign: "left" }}>
+                            <div>{label}</div>
+                            <div style={{ fontSize: 10, fontWeight: 400, marginTop: 2, opacity: 0.8 }}>{desc}</div>
+                          </button>
+                        ))}
                       </div>
                     </div>
 
-                    {/* Trainer status toggle */}
-                    <div style={{ display: "flex", gap: 8 }}>
-                      {[["internal", false, "🏢 Internal", "#38bdf8", "#0c2a3f"], ["partner", true, "🤝 Partner", "#a78bfa", "#1e1040"]].map(([key, val, label, color, bg]) => (
-                        <button key={key} onClick={() => setForm(f => ({ ...f, is_partner: val }))}
-                          style={{ padding: "7px 18px", borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: "pointer", border: `1px solid ${form.is_partner === val ? color : "#1e293b"}`, background: form.is_partner === val ? bg : "transparent", color: form.is_partner === val ? color : "#475569", transition: "all 0.15s" }}>
-                          {label}
-                        </button>
-                      ))}
-                      <span style={{ fontSize: 11, color: "#475569", alignSelf: "center", marginLeft: 4 }}>
-                        {form.is_partner ? "Trainer dari mitra/perusahaan luar" : "Trainer staf internal"}
-                      </span>
+                    {/* Tarif info */}
+                    <div style={{ background: "#060d1a", border: "1px solid #1e293b", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "#475569" }}>
+                      {form.session_type === "training" ? (
+                        <span>💰 Tarif: <span style={{ color: "#38bdf8" }}>Internal Rp 100rb/jam</span> · <span style={{ color: "#a78bfa" }}>Partner Rp 150rb/jam</span></span>
+                      ) : (
+                        <span>💰 Tarif: <span style={{ color: "#10b981" }}>1 Teknisi Rp 100rb/jam</span> · <span style={{ color: "#f59e0b" }}>2 Teknisi Rp 70rb/jam per orang</span></span>
+                      )}
                     </div>
+
+                    {/* Row 1: Tanggal & Trainer */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      <div>
+                        <label style={{ fontSize: 11, color: "#64748b" }}>{form.session_type === "onsite" ? "Tanggal Onsite *" : "Tanggal Training *"}</label>
+                        <input type="date" style={INP} value={form.training_date} onChange={e => setForm(f => ({ ...f, training_date: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: "#64748b" }}>{form.session_type === "onsite" ? "Nama Teknisi *" : "Nama Trainer *"}</label>
+                        <input type="text" style={INP} placeholder={form.session_type === "onsite" ? "Nama teknisi" : "Nama yang melatih"} value={form.trainer_name} onChange={e => setForm(f => ({ ...f, trainer_name: e.target.value }))} />
+                      </div>
+                    </div>
+
+                    {/* Trainer status toggle (training only) OR Technician count (onsite only) */}
+                    {form.session_type === "training" ? (
+                      <div style={{ display: "flex", gap: 8 }}>
+                        {[["internal", false, "🏢 Internal", "#38bdf8", "#0c2a3f"], ["partner", true, "🤝 Partner", "#a78bfa", "#1e1040"]].map(([key, val, label, color, bg]) => (
+                          <button key={key} onClick={() => setForm(f => ({ ...f, is_partner: val }))}
+                            style={{ padding: "7px 18px", borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                              border: `1px solid ${form.is_partner === val ? color : "#1e293b"}`,
+                              background: form.is_partner === val ? bg : "transparent",
+                              color: form.is_partner === val ? color : "#475569", transition: "all 0.15s" }}>
+                            {label}
+                          </button>
+                        ))}
+                        <span style={{ fontSize: 11, color: "#475569", alignSelf: "center", marginLeft: 4 }}>
+                          {form.is_partner ? "Trainer dari mitra/perusahaan luar" : "Trainer staf internal"}
+                        </span>
+                      </div>
+                    ) : (
+                      <div>
+                        <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 6 }}>Jumlah Teknisi *</label>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          {[[1, "👤 1 Teknisi", "Rp 100rb/jam", "#10b981", "#052e16"], [2, "👥 2 Teknisi", "Rp 70rb/jam per orang", "#f59e0b", "#451a03"]].map(([val, label, tarif, color, bg]) => (
+                            <button key={val} onClick={() => setForm(f => ({ ...f, technician_count: val }))}
+                              style={{ flex: 1, padding: "9px 14px", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                                border: `1px solid ${form.technician_count === val ? color : "#1e293b"}`,
+                                background: form.technician_count === val ? bg : "transparent",
+                                color: form.technician_count === val ? color : "#475569", transition: "all 0.15s", textAlign: "left" }}>
+                              <div>{label}</div>
+                              <div style={{ fontSize: 10, fontWeight: 400, marginTop: 1, opacity: 0.8 }}>{tarif}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Row 2: Jam Mulai & Selesai + durasi otomatis */}
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
@@ -352,21 +407,31 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                     <div style={{ flex: 1, minWidth: 0 }}>
                       {/* Header */}
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-                        <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700, background: "#0c2a3f", color: "#38bdf8" }}>⏱ {s.hours_used} jam</span>
+                        {/* Session type badge */}
+                        {s.session_type === "onsite"
+                          ? <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700, background: "#052e16", color: "#10b981" }}>🔧 Onsite IT</span>
+                          : <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700, background: "#0c2a3f", color: "#38bdf8" }}>📚 Training</span>
+                        }
+                        <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700, background: "#1a1a2e", color: "#f59e0b" }}>⏱ {s.hours_used} jam</span>
                         {s.start_time && s.end_time && (
                           <span style={{ fontSize: 11, color: "#475569" }}>🕐 {s.start_time} – {s.end_time}</span>
                         )}
                         <span style={{ fontSize: 11, color: "#475569" }}>📅 {s.training_date}</span>
-                        {s.is_partner
+                        {s.session_type === "training" && (s.is_partner
                           ? <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: "#1e1040", color: "#a78bfa" }}>🤝 Partner</span>
                           : <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: "#0c2a3f", color: "#38bdf8" }}>🏢 Internal</span>
-                        }
+                        )}
+                        {s.session_type === "onsite" && (
+                          <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: s.technician_count === 2 ? "#451a03" : "#052e16", color: s.technician_count === 2 ? "#f59e0b" : "#10b981" }}>
+                            {s.technician_count === 2 ? "👥 2 Teknisi" : "👤 1 Teknisi"}
+                          </span>
+                        )}
                         {s.use_vehicle && <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: "#052e16", color: "#10b981" }}>🚗 Kendaraan Pribadi</span>}
                       </div>
                       {/* Details grid */}
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
                         <div style={{ fontSize: 12, color: "#64748b" }}>
-                          <span style={{ color: "#475569" }}>👤 Trainer: </span>{s.trainer_name}
+                          <span style={{ color: "#475569" }}>{s.session_type === "onsite" ? "👤 Teknisi: " : "👤 Trainer: "}</span>{s.trainer_name}
                         </div>
                         <div style={{ fontSize: 12, color: "#64748b" }}>
                           <span style={{ color: "#475569" }}>👥 Peserta: </span>{s.participants}
@@ -374,7 +439,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                       </div>
                       {/* Topic - multiline */}
                       <div style={{ background: "#060d1a", border: "1px solid #1e293b", borderRadius: 6, padding: "8px 10px", marginBottom: s.notes ? 8 : 0 }}>
-                        <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>📚 Materi Training:</div>
+                        <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>{s.session_type === "onsite" ? "🔧 Detail Pekerjaan:" : "📚 Materi Training:"}</div>
                         <div style={{ fontSize: 12, color: "#94a3b8", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{s.topic}</div>
                       </div>
                       {s.notes && (
