@@ -84,15 +84,21 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
   const [msg, setMsg] = useState(null);
   const [form, setForm] = useState({
     training_date: new Date().toISOString().split("T")[0],
-    session_type: "training", // training | onsite
-    trainer_name: currentUser?.profile?.full_name || "",
-    is_partner: false,
-    technician_count: 1, // 1 or 2 (onsite only)
+    session_type: "training",
+    // Person 1
+    person1_name: currentUser?.profile?.full_name || "",
+    person1_is_partner: false,
+    person1_vehicle: false,
+    // Person 2 (optional)
+    has_second_person: false,
+    person2_name: "",
+    person2_is_partner: false,
+    person2_vehicle: false,
+    // Common
     participants: "",
     topics: "",
     start_time: "08:00",
     end_time: "10:00",
-    use_vehicle: false,
     notes: "",
   });
 
@@ -125,8 +131,11 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
   const totalUsedFromHistory = sessions.reduce((a, s) => a + parseFloat(s.hours_used || 0), 0);
 
   const handleAdd = async () => {
-    if (!form.training_date || !form.trainer_name || !form.participants || !form.topics || !form.start_time || !form.end_time) {
+    if (!form.training_date || !form.person1_name || !form.participants || !form.topics || !form.start_time || !form.end_time) {
       notify("Semua field wajib diisi kecuali catatan", "error"); return;
+    }
+    if (form.has_second_person && !form.person2_name) {
+      notify("Nama orang kedua wajib diisi", "error"); return;
     }
     const hrs = calcHours(form.start_time, form.end_time);
     if (hrs <= 0) { notify("Jam selesai harus lebih dari jam mulai", "error"); return; }
@@ -139,15 +148,22 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
         project_id: project.id,
         training_date: form.training_date,
         session_type: form.session_type,
-        trainer_name: form.trainer_name,
-        is_partner: form.session_type === "training" ? form.is_partner : false,
-        technician_count: form.session_type === "onsite" ? form.technician_count : 1,
+        // Person 1
+        trainer_name: form.person1_name,
+        is_partner: form.session_type === "training" ? form.person1_is_partner : false,
+        use_vehicle: form.person1_vehicle,
+        // Person 2
+        has_second_person: form.has_second_person,
+        person2_name: form.has_second_person ? form.person2_name : null,
+        person2_is_partner: form.has_second_person && form.session_type === "training" ? form.person2_is_partner : false,
+        person2_vehicle: form.has_second_person ? form.person2_vehicle : false,
+        // Common
+        technician_count: form.has_second_person ? 2 : 1,
         participants: form.participants,
         topic: form.topics,
         hours_used: hrs,
         start_time: form.start_time,
         end_time: form.end_time,
-        use_vehicle: form.use_vehicle,
         notes: form.notes,
         created_by: currentUser?.id || null,
       };
@@ -159,7 +175,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
       await onUpdateHours(project.trainingHours.total, newUsed);
       await onSave({ ...project, trainingHours: { ...project.trainingHours, used: newUsed } });
 
-      setForm({ training_date: new Date().toISOString().split("T")[0], session_type: "training", trainer_name: currentUser?.profile?.full_name || "", is_partner: false, technician_count: 1, participants: "", topics: "", start_time: "08:00", end_time: "10:00", use_vehicle: false, notes: "" });
+      setForm({ training_date: new Date().toISOString().split("T")[0], session_type: "training", person1_name: currentUser?.profile?.full_name || "", person1_is_partner: false, person1_vehicle: false, has_second_person: false, person2_name: "", person2_is_partner: false, person2_vehicle: false, participants: "", topics: "", start_time: "08:00", end_time: "10:00", notes: "" });
       setShowForm(false);
       notify(`Sesi training berhasil dicatat! ${hrs} jam dikurangi dari kuota.`);
     } catch (e) { notify(e.message, "error"); }
@@ -275,48 +291,93 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                       )}
                     </div>
 
-                    {/* Row 1: Tanggal & Trainer */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                      <div>
-                        <label style={{ fontSize: 11, color: "#64748b" }}>{form.session_type === "onsite" ? "Tanggal Onsite *" : "Tanggal Training *"}</label>
-                        <input type="date" style={INP} value={form.training_date} onChange={e => setForm(f => ({ ...f, training_date: e.target.value }))} />
+                    {/* Row 1: Tanggal */}
+                    <div>
+                      <label style={{ fontSize: 11, color: "#64748b" }}>{form.session_type === "onsite" ? "Tanggal Onsite *" : "Tanggal Training *"}</label>
+                      <input type="date" style={INP} value={form.training_date} onChange={e => setForm(f => ({ ...f, training_date: e.target.value }))} />
+                    </div>
+
+                    {/* Person 1 */}
+                    <div style={{ background: "#060d1a", border: "1px solid #1e293b", borderRadius: 10, padding: 12 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "#64748b", marginBottom: 10 }}>
+                        {form.session_type === "onsite" ? "👤 Teknisi 1 *" : "👤 Trainer / Orang 1 *"}
                       </div>
-                      <div>
-                        <label style={{ fontSize: 11, color: "#64748b" }}>{form.session_type === "onsite" ? "Nama Teknisi *" : "Nama Trainer *"}</label>
-                        <input type="text" style={INP} placeholder={form.session_type === "onsite" ? "Nama teknisi" : "Nama yang melatih"} value={form.trainer_name} onChange={e => setForm(f => ({ ...f, trainer_name: e.target.value }))} />
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                        <div style={{ gridColumn: "1 / -1" }}>
+                          <label style={{ fontSize: 11, color: "#64748b" }}>Nama *</label>
+                          <input type="text" style={INP} placeholder={form.session_type === "onsite" ? "Nama teknisi" : "Nama trainer/orang pertama"} value={form.person1_name} onChange={e => setForm(f => ({ ...f, person1_name: e.target.value }))} />
+                        </div>
+                        {form.session_type === "training" && (
+                          <div style={{ gridColumn: "1 / -1" }}>
+                            <label style={{ fontSize: 11, color: "#64748b" }}>Status</label>
+                            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                              {[["internal", false, "🏢 Internal", "#38bdf8", "#0c2a3f"], ["partner", true, "🤝 Partner", "#a78bfa", "#1e1040"]].map(([key, val, label, color, bg]) => (
+                                <button key={key} onClick={() => setForm(f => ({ ...f, person1_is_partner: val }))}
+                                  style={{ flex: 1, padding: "6px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                                    border: `1px solid ${form.person1_is_partner === val ? color : "#1e293b"}`,
+                                    background: form.person1_is_partner === val ? bg : "transparent",
+                                    color: form.person1_is_partner === val ? color : "#475569" }}>
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#0a1525", borderRadius: 8, padding: "8px 12px" }}>
+                          <span style={{ fontSize: 12, color: "#64748b" }}>🚗 Kendaraan Pribadi</span>
+                          <div onClick={() => setForm(f => ({ ...f, person1_vehicle: !f.person1_vehicle }))} style={{ width: 40, height: 22, borderRadius: 999, cursor: "pointer", background: form.person1_vehicle ? "#10b981" : "#1e293b", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+                            <div style={{ position: "absolute", top: 2, left: form.person1_vehicle ? 20 : 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Trainer status toggle (training only) OR Technician count (onsite only) */}
-                    {form.session_type === "training" ? (
-                      <div style={{ display: "flex", gap: 8 }}>
-                        {[["internal", false, "🏢 Internal", "#38bdf8", "#0c2a3f"], ["partner", true, "🤝 Partner", "#a78bfa", "#1e1040"]].map(([key, val, label, color, bg]) => (
-                          <button key={key} onClick={() => setForm(f => ({ ...f, is_partner: val }))}
-                            style={{ padding: "7px 18px", borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: "pointer",
-                              border: `1px solid ${form.is_partner === val ? color : "#1e293b"}`,
-                              background: form.is_partner === val ? bg : "transparent",
-                              color: form.is_partner === val ? color : "#475569", transition: "all 0.15s" }}>
-                            {label}
-                          </button>
-                        ))}
-                        <span style={{ fontSize: 11, color: "#475569", alignSelf: "center", marginLeft: 4 }}>
-                          {form.is_partner ? "Trainer dari mitra/perusahaan luar" : "Trainer staf internal"}
-                        </span>
-                      </div>
-                    ) : (
-                      <div>
-                        <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 6 }}>Jumlah Teknisi *</label>
-                        <div style={{ display: "flex", gap: 8 }}>
-                          {[[1, "👤 1 Teknisi", "Rp 100rb/jam", "#10b981", "#052e16"], [2, "👥 2 Teknisi", "Rp 70rb/jam per orang", "#f59e0b", "#451a03"]].map(([val, label, tarif, color, bg]) => (
-                            <button key={val} onClick={() => setForm(f => ({ ...f, technician_count: val }))}
-                              style={{ flex: 1, padding: "9px 14px", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: "pointer",
-                                border: `1px solid ${form.technician_count === val ? color : "#1e293b"}`,
-                                background: form.technician_count === val ? bg : "transparent",
-                                color: form.technician_count === val ? color : "#475569", transition: "all 0.15s", textAlign: "left" }}>
-                              <div>{label}</div>
-                              <div style={{ fontSize: 10, fontWeight: 400, marginTop: 1, opacity: 0.8 }}>{tarif}</div>
-                            </button>
-                          ))}
+                    {/* Toggle add second person */}
+                    <button onClick={() => setForm(f => ({ ...f, has_second_person: !f.has_second_person, person2_name: "", person2_is_partner: false, person2_vehicle: false }))}
+                      style={{ padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                        border: `1px solid ${form.has_second_person ? "#ef444433" : "#1e293b"}`,
+                        background: form.has_second_person ? "#1c0a0a" : "transparent",
+                        color: form.has_second_person ? "#ef4444" : "#64748b" }}>
+                      {form.has_second_person ? "✕ Hapus Orang Kedua" : `+ Tambah ${form.session_type === "onsite" ? "Teknisi" : "Trainer"} Kedua`}
+                    </button>
+
+                    {/* Person 2 */}
+                    {form.has_second_person && (
+                      <div style={{ background: "#060d1a", border: "1px solid #1d4ed8", borderRadius: 10, padding: 12 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#38bdf8", marginBottom: 10 }}>
+                          {form.session_type === "onsite" ? "👥 Teknisi 2 *" : "👥 Trainer / Orang 2 *"}
+                          <span style={{ fontSize: 11, fontWeight: 400, color: "#475569", marginLeft: 8 }}>
+                            {form.session_type === "onsite" ? "Tarif: Rp 70rb/jam" : 
+                             form.person2_is_partner ? "Tarif: Rp 100rb/jam" : "Tarif: Rp 70rb/jam"}
+                          </span>
+                        </div>
+                        <div style={{ display: "grid", gap: 10 }}>
+                          <div>
+                            <label style={{ fontSize: 11, color: "#64748b" }}>Nama *</label>
+                            <input type="text" style={INP} placeholder={form.session_type === "onsite" ? "Nama teknisi kedua" : "Nama trainer/orang kedua"} value={form.person2_name} onChange={e => setForm(f => ({ ...f, person2_name: e.target.value }))} />
+                          </div>
+                          {form.session_type === "training" && (
+                            <div>
+                              <label style={{ fontSize: 11, color: "#64748b" }}>Status</label>
+                              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                                {[["internal", false, "🏢 Internal", "#38bdf8", "#0c2a3f"], ["partner", true, "🤝 Partner", "#a78bfa", "#1e1040"]].map(([key, val, label, color, bg]) => (
+                                  <button key={key} onClick={() => setForm(f => ({ ...f, person2_is_partner: val }))}
+                                    style={{ flex: 1, padding: "6px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                                      border: `1px solid ${form.person2_is_partner === val ? color : "#1e293b"}`,
+                                      background: form.person2_is_partner === val ? bg : "transparent",
+                                      color: form.person2_is_partner === val ? color : "#475569" }}>
+                                    {label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#0a1525", borderRadius: 8, padding: "8px 12px" }}>
+                            <span style={{ fontSize: 12, color: "#64748b" }}>🚗 Kendaraan Pribadi</span>
+                            <div onClick={() => setForm(f => ({ ...f, person2_vehicle: !f.person2_vehicle }))} style={{ width: 40, height: 22, borderRadius: 999, cursor: "pointer", background: form.person2_vehicle ? "#10b981" : "#1e293b", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+                              <div style={{ position: "absolute", top: 2, left: form.person2_vehicle ? 20 : 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -426,14 +487,29 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                             {s.technician_count === 2 ? "👥 2 Teknisi" : "👤 1 Teknisi"}
                           </span>
                         )}
-                        {s.use_vehicle && <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: "#052e16", color: "#10b981" }}>🚗 Kendaraan Pribadi</span>}
+                        {(s.use_vehicle || s.person2_vehicle) && (
+                          <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: "#052e16", color: "#10b981" }}>
+                            🚗 {[s.use_vehicle && "P1", s.person2_vehicle && "P2"].filter(Boolean).join("+")}
+                          </span>
+                        )}
                       </div>
                       {/* Details grid */}
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
                         <div style={{ fontSize: 12, color: "#64748b" }}>
-                          <span style={{ color: "#475569" }}>{s.session_type === "onsite" ? "👤 Teknisi: " : "👤 Trainer: "}</span>{s.trainer_name}
+                          <span style={{ color: "#475569" }}>{s.session_type === "onsite" ? "👤 Teknisi 1: " : "👤 Orang 1: "}</span>
+                          {s.trainer_name}
+                          {s.session_type === "training" && <span style={{ marginLeft: 4, fontSize: 10, color: s.is_partner ? "#a78bfa" : "#38bdf8" }}>{s.is_partner ? "(Partner)" : "(Internal)"}</span>}
+                          {s.use_vehicle && <span style={{ marginLeft: 4, fontSize: 10, color: "#10b981" }}>🚗</span>}
                         </div>
-                        <div style={{ fontSize: 12, color: "#64748b" }}>
+                        {s.has_second_person && s.person2_name && (
+                          <div style={{ fontSize: 12, color: "#64748b" }}>
+                            <span style={{ color: "#475569" }}>{s.session_type === "onsite" ? "👥 Teknisi 2: " : "👥 Orang 2: "}</span>
+                            {s.person2_name}
+                            {s.session_type === "training" && <span style={{ marginLeft: 4, fontSize: 10, color: s.person2_is_partner ? "#a78bfa" : "#38bdf8" }}>{s.person2_is_partner ? "(Partner)" : "(Internal)"}</span>}
+                            {s.person2_vehicle && <span style={{ marginLeft: 4, fontSize: 10, color: "#10b981" }}>🚗</span>}
+                          </div>
+                        )}
+                        <div style={{ fontSize: 12, color: "#64748b", gridColumn: s.has_second_person ? "1 / -1" : "" }}>
                           <span style={{ color: "#475569" }}>👥 Peserta: </span>{s.participants}
                         </div>
                       </div>
