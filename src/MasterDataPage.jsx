@@ -153,12 +153,23 @@ function CompanySection({ isAdmin }) {
 
   const handleSave = async () => {
     if (!form.name.trim()) { notify(setMsg,"Nama perusahaan wajib diisi","error"); return; }
+
+    // Cek duplikat nama (case-insensitive, trim whitespace)
+    const nameLower = form.name.trim().toLowerCase();
+    const duplicate = companies.find(c =>
+      c.name.trim().toLowerCase() === nameLower && c.id !== editId
+    );
+    if (duplicate) {
+      notify(setMsg, `Perusahaan "${duplicate.name}" sudah ada! Gunakan nama yang berbeda.`, "error");
+      return;
+    }
+
     try {
-      if (editId) await dbPatch("companies", editId, form);
-      else await dbPost("companies", form);
+      if (editId) await dbPatch("companies", editId, { ...form, name: form.name.trim() });
+      else await dbPost("companies", { ...form, name: form.name.trim() });
       notify(setMsg, editId ? "Perusahaan diupdate!" : "Perusahaan ditambahkan!");
       setForm({ name:"", pic_name:"", pic_phone:"", address:"", status:"prospek", notes:"" });
-      setEditId(null); load();
+      setEditId(null); setShowPicPicker(false); load();
     } catch(e) { notify(setMsg, e.message, "error"); }
   };
 
@@ -202,7 +213,16 @@ function CompanySection({ isAdmin }) {
         <div style={{ ...MINI, marginBottom:16 }}>
           <div style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:10 }}>{editId ? "✏️ Edit Perusahaan" : "➕ Tambah Perusahaan"}</div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:10 }}>
-            <div style={{ gridColumn:"1/-1" }}><label style={{ fontSize:11, color:"#64748b" }}>Nama Perusahaan *</label><input style={INP} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="PT / CV / Nama Usaha" /></div>
+            <div style={{ gridColumn:"1/-1" }}>
+              <label style={{ fontSize:11, color:"#64748b" }}>Nama Perusahaan *</label>
+              <input style={{ ...INP, borderColor: form.name.trim() && companies.find(c => c.name.trim().toLowerCase() === form.name.trim().toLowerCase() && c.id !== editId) ? "#ef4444" : "#1e293b" }}
+                value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="PT / CV / Nama Usaha" />
+              {form.name.trim() && companies.find(c => c.name.trim().toLowerCase() === form.name.trim().toLowerCase() && c.id !== editId) && (
+                <div style={{ fontSize:11, color:"#ef4444", marginTop:4, display:"flex", alignItems:"center", gap:4 }}>
+                  ⚠️ Nama ini sudah terdaftar — gunakan nama yang berbeda
+                </div>
+              )}
+            </div>
             <div>
               <label style={{ fontSize:11, color:"#64748b" }}>Nama PIC</label>
               {teamMembers.length > 0 && (
