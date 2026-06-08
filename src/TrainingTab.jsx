@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 const SUPABASE_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
 const TRAIN_API = `${SUPABASE_URL}/rest/v1/training_sessions`;
+const TEAM_API  = `${SUPABASE_URL}/rest/v1/team_members`;
 
 function getToken() {
   try { return JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPABASE_KEY; }
@@ -78,6 +79,7 @@ const MINI = { background: "#0a1525", border: "1px solid #1a2744", borderRadius:
 export default function TrainingTab({ project, canEdit, canTraining, canDelete, currentUser, onUpdateHours, onSave }) {
   const [subTab, setSubTab] = useState("histori");
   const [sessions, setSessions] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -112,7 +114,17 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
   };
   const hoursFromTime = calcHours(form.start_time, form.end_time);
 
-  useEffect(() => { loadSessions(); }, [project.id]);
+  useEffect(() => { loadSessions(); loadTeam(); }, [project.id]);
+
+  const loadTeam = async () => {
+    try {
+      const token = await getValidToken();
+      const res = await fetch(`${TEAM_API}?order=name.asc&is_active=eq.true`, {
+        headers: { "Content-Type":"application/json", "apikey":SUPABASE_KEY, "Authorization":`Bearer ${token}` }
+      });
+      if (res.ok) setTeamMembers(await res.json());
+    } catch {}
+  };
 
   const loadSessions = async () => {
     setLoading(true);
@@ -304,7 +316,20 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                         <div style={{ gridColumn: "1 / -1" }}>
-                          <label style={{ fontSize: 11, color: "#64748b" }}>Nama *</label>
+                          <label style={{ fontSize: 11, color: "#64748b" }}>Nama * <span style={{ color:"#334155", fontWeight:400 }}>(pilih dari tim atau ketik manual)</span></label>
+                          {teamMembers.length > 0 && (
+                            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:6, marginBottom:6 }}>
+                              {teamMembers.map(m => (
+                                <button key={m.id} type="button" onClick={() => setForm(f => ({ ...f, person1_name: m.name }))}
+                                  style={{ padding:"4px 12px", borderRadius:999, fontSize:11, fontWeight:600, cursor:"pointer",
+                                    border:`1px solid ${form.person1_name===m.name?"#38bdf8":"#1e293b"}`,
+                                    background:form.person1_name===m.name?"#0c2a3f":"transparent",
+                                    color:form.person1_name===m.name?"#38bdf8":"#475569" }}>
+                                  {m.name}{m.position ? ` (${m.position})` : ""}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           <input type="text" style={INP} placeholder={form.session_type === "onsite" ? "Nama teknisi" : "Nama trainer/orang pertama"} value={form.person1_name} onChange={e => setForm(f => ({ ...f, person1_name: e.target.value }))} />
                         </div>
                         {form.session_type === "training" && (
@@ -353,7 +378,20 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                         </div>
                         <div style={{ display: "grid", gap: 10 }}>
                           <div>
-                            <label style={{ fontSize: 11, color: "#64748b" }}>Nama *</label>
+                            <label style={{ fontSize: 11, color: "#64748b" }}>Nama * <span style={{ color:"#334155", fontWeight:400 }}>(pilih atau ketik manual)</span></label>
+                            {teamMembers.length > 0 && (
+                              <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:6, marginBottom:6 }}>
+                                {teamMembers.filter(m => m.name !== form.person1_name).map(m => (
+                                  <button key={m.id} type="button" onClick={() => setForm(f => ({ ...f, person2_name: m.name }))}
+                                    style={{ padding:"4px 12px", borderRadius:999, fontSize:11, fontWeight:600, cursor:"pointer",
+                                      border:`1px solid ${form.person2_name===m.name?"#38bdf8":"#1e293b"}`,
+                                      background:form.person2_name===m.name?"#0c2a3f":"transparent",
+                                      color:form.person2_name===m.name?"#38bdf8":"#475569" }}>
+                                    {m.name}{m.position ? ` (${m.position})` : ""}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                             <input type="text" style={INP} placeholder={form.session_type === "onsite" ? "Nama teknisi kedua" : "Nama trainer/orang kedua"} value={form.person2_name} onChange={e => setForm(f => ({ ...f, person2_name: e.target.value }))} />
                           </div>
                           {form.session_type === "training" && (
