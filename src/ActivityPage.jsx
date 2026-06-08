@@ -57,6 +57,17 @@ function fmtDate(d) {
   return `${parseInt(day)} ${months[parseInt(m)-1]} ${y}`;
 }
 
+function calcDuration(start, end) {
+  if (!start || !end) return null;
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  const mins = (eh * 60 + em) - (sh * 60 + sm);
+  if (mins <= 0) return null;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h > 0 ? (m > 0 ? `${h} jam ${m} menit` : `${h} jam`) : `${m} menit`;
+}
+
 function notify(setter, text, type="success") {
   setter({ text, type });
   setTimeout(() => setter(null), 3000);
@@ -225,6 +236,8 @@ function ActivityFormModal({ activity, members, companies, currentUser, onClose,
   const [form, setForm] = useState(activity ? {
     activity_date: activity.activity_date,
     activity_type: activity.activity_type,
+    start_time: activity.start_time || "09:00",
+    end_time: activity.end_time || "10:00",
     team_member_id: activity.team_member_id || "",
     team_member_name: activity.team_member_name,
     company_id: activity.company_id || "",
@@ -236,6 +249,8 @@ function ActivityFormModal({ activity, members, companies, currentUser, onClose,
   } : {
     activity_date: new Date().toISOString().split("T")[0],
     activity_type: "meeting",
+    start_time: "09:00",
+    end_time: "10:00",
     team_member_id: "",
     team_member_name: "",
     company_id: "",
@@ -274,6 +289,23 @@ function ActivityFormModal({ activity, members, companies, currentUser, onClose,
           <div>
             <label style={{ fontSize:11, color:"#64748b" }}>Tanggal *</label>
             <input type="date" style={INP} value={form.activity_date} onChange={e=>setForm(f=>({...f,activity_date:e.target.value}))} />
+            {/* Time row */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginTop:8 }}>
+              <div>
+                <label style={{ fontSize:10, color:"#64748b" }}>Jam Mulai</label>
+                <input type="time" style={{ ...INP, marginTop:2 }} value={form.start_time} onChange={e=>setForm(f=>({...f,start_time:e.target.value}))} />
+              </div>
+              <div>
+                <label style={{ fontSize:10, color:"#64748b" }}>Jam Selesai</label>
+                <input type="time" style={{ ...INP, marginTop:2 }} value={form.end_time} onChange={e=>setForm(f=>({...f,end_time:e.target.value}))} />
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", justifyContent:"flex-end" }}>
+                <label style={{ fontSize:10, color:"#64748b", marginBottom:2 }}>Durasi</label>
+                <div style={{ background:"#060d1a", border:"1px solid #1e293b", borderRadius:8, padding:"8px 10px", fontSize:12, fontWeight:700, color: calcDuration(form.start_time, form.end_time) ? "#38bdf8" : "#334155" }}>
+                  {calcDuration(form.start_time, form.end_time) || "—"}
+                </div>
+              </div>
+            </div>
           </div>
           <div>
             <label style={{ fontSize:11, color:"#64748b", display:"block", marginBottom:4 }}>Jenis Aktivitas *</label>
@@ -361,6 +393,7 @@ function ActivityDetailModal({ activity, onClose, onEdit, onDelete, isAdmin }) {
         {[
           ["👤 Anggota Tim", activity.team_member_name],
           ["🏢 Perusahaan", activity.company_name],
+          ["🕐 Waktu", activity.start_time ? `${activity.start_time}${activity.end_time ? ` – ${activity.end_time}` : ""}${calcDuration(activity.start_time, activity.end_time) ? ` (${calcDuration(activity.start_time, activity.end_time)})` : ""}` : "-"],
           ["✅ Outcome", activity.outcome || "-"],
           ["📝 Catatan", activity.notes || "-"],
           ["🔄 Follow-up", activity.follow_up || "-"],
@@ -563,6 +596,7 @@ export default function ActivityPage({ onClose, currentUser, isAdmin }) {
                         </div>
                         <div style={{ fontSize:12, color:"#475569" }}>
                           👤 {a.team_member_name} · 📅 {fmtDate(a.activity_date)}
+                          {a.start_time && <span> · 🕐 {a.start_time}{a.end_time ? `–${a.end_time}` : ""}{calcDuration(a.start_time,a.end_time) ? <span style={{color:"#38bdf8"}}> ({calcDuration(a.start_time,a.end_time)})</span> : ""}</span>}
                         </div>
                         {a.outcome && <div style={{ fontSize:12, color:"#64748b", marginTop:4 }}>✅ {a.outcome.slice(0,80)}{a.outcome.length>80?"...":""}</div>}
                         {a.follow_up && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>🔄 {a.follow_up.slice(0,60)}{a.follow_up.length>60?"...":""}</div>}
