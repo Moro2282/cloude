@@ -238,8 +238,8 @@ function ActivityFormModal({ activity, members, companies, currentUser, onClose,
     activity_type: activity.activity_type,
     start_time: activity.start_time || "09:00",
     end_time: activity.end_time || "10:00",
-    team_member_id: activity.team_member_id || "",
-    team_member_name: activity.team_member_name,
+    team_member_ids: activity.team_member_ids || (activity.team_member_id ? [activity.team_member_id] : []),
+    team_member_names: activity.team_member_names || (activity.team_member_name ? [activity.team_member_name] : []),
     company_id: activity.company_id || "",
     company_name: activity.company_name,
     company_status: activity.company_status || "prospek",
@@ -251,8 +251,8 @@ function ActivityFormModal({ activity, members, companies, currentUser, onClose,
     activity_type: "meeting",
     start_time: "09:00",
     end_time: "10:00",
-    team_member_id: "",
-    team_member_name: "",
+    team_member_ids: [],
+    team_member_names: [],
     company_id: "",
     company_name: "",
     company_status: "prospek",
@@ -263,16 +263,33 @@ function ActivityFormModal({ activity, members, companies, currentUser, onClose,
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
 
-  const selectMember = (m) => setForm(f => ({ ...f, team_member_id: m.id, team_member_name: m.name }));
+  const toggleMember = (m) => {
+    setForm(f => {
+      const ids = f.team_member_ids || [];
+      const names = f.team_member_names || [];
+      if (ids.includes(m.id)) {
+        return { ...f, team_member_ids: ids.filter(x => x !== m.id), team_member_names: names.filter(x => x !== m.name) };
+      } else {
+        return { ...f, team_member_ids: [...ids, m.id], team_member_names: [...names, m.name] };
+      }
+    });
+  };
   const selectCompany = (c) => setForm(f => ({ ...f, company_id: c.id, company_name: c.name, company_status: c.status }));
 
   const handleSave = async () => {
-    if (!form.activity_date || !form.team_member_name || !form.company_name) {
-      notify(setMsg, "Tanggal, anggota tim, dan perusahaan wajib diisi", "error"); return;
+    if (!form.activity_date || form.team_member_names.length === 0 || !form.company_name) {
+      notify(setMsg, "Tanggal, minimal 1 anggota tim, dan perusahaan wajib diisi", "error"); return;
     }
     setSaving(true);
     try {
-      const payload = { ...form, created_by: currentUser?.id };
+      const payload = {
+        ...form,
+        team_member_id: form.team_member_ids[0] || null,
+        team_member_name: form.team_member_names.join(", "),
+        team_member_ids: form.team_member_ids,
+        team_member_names: form.team_member_names,
+        created_by: currentUser?.id,
+      };
       await onSave(payload, activity?.id);
       onClose();
     } catch(e) { notify(setMsg, e.message, "error"); }
@@ -319,18 +336,37 @@ function ActivityFormModal({ activity, members, companies, currentUser, onClose,
           </div>
         </div>
 
-        {/* Anggota Tim */}
+        {/* Anggota Tim - multi select */}
         <div style={MINI}>
-          <div style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:8 }}>👤 Anggota Tim *</div>
-          <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom: form.team_member_name ? 8 : 0 }}>
-            {members.map(m => (
-              <button key={m.id} onClick={()=>selectMember(m)} style={{ padding:"5px 12px", borderRadius:999, fontSize:12, fontWeight:600, cursor:"pointer", border:`1px solid ${form.team_member_id===m.id?"#38bdf8":"#1e293b"}`, background:form.team_member_id===m.id?"#0c2a3f":"transparent", color:form.team_member_id===m.id?"#38bdf8":"#475569" }}>
-                {m.name}
-              </button>
-            ))}
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:"#64748b" }}>👥 Anggota Tim * <span style={{ color:"#334155", fontWeight:400 }}>(bisa pilih lebih dari 1)</span></div>
+            {form.team_member_names.length > 0 && (
+              <button onClick={()=>setForm(f=>({...f,team_member_ids:[],team_member_names:[]}))} style={{ fontSize:10, padding:"2px 8px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>✕ Hapus Semua</button>
+            )}
           </div>
-          {form.team_member_name && (
-            <div style={{ fontSize:11, color:"#38bdf8", marginTop:4 }}>✓ {form.team_member_name}</div>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:10 }}>
+            {members.map(m => {
+              const selected = (form.team_member_ids||[]).includes(m.id);
+              return (
+                <button key={m.id} onClick={()=>toggleMember(m)} style={{ padding:"6px 14px", borderRadius:999, fontSize:12, fontWeight:600, cursor:"pointer",
+                  border:`1px solid ${selected?"#38bdf8":"#1e293b"}`,
+                  background:selected?"#0c2a3f":"transparent",
+                  color:selected?"#38bdf8":"#475569",
+                  display:"flex", alignItems:"center", gap:6 }}>
+                  {selected && <span style={{ fontSize:10 }}>✓</span>}
+                  {m.name}{m.position ? ` (${m.position})` : ""}
+                </button>
+              );
+            })}
+          </div>
+          {form.team_member_names.length > 0 ? (
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+              {form.team_member_names.map(name => (
+                <span key={name} style={{ padding:"3px 10px", borderRadius:999, fontSize:11, fontWeight:600, background:"#0c2a3f", color:"#38bdf8", border:"1px solid #1d4ed833" }}>✓ {name}</span>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize:11, color:"#334155" }}>Belum ada anggota tim dipilih</div>
           )}
         </div>
 
@@ -481,7 +517,7 @@ export default function ActivityPage({ onClose, currentUser, isAdmin }) {
     return true;
   });
 
-  const uniqueMembers = [...new Set(activities.map(a => a.team_member_name))].sort();
+  const uniqueMembers = [...new Set(activities.flatMap(a => a.team_member_names || (a.team_member_name ? [a.team_member_name] : [])))].sort();
 
   // Stats
   const stats = {
