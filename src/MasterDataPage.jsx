@@ -127,6 +127,7 @@ function TeamSection({ isAdmin }) {
 // ─── MASTER PERUSAHAAN ────────────────────────────────────────────────────────
 function CompanySection({ isAdmin }) {
   const [companies, setCompanies] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [form, setForm] = useState({ name:"", pic_name:"", pic_phone:"", address:"", status:"prospek", notes:"" });
   const [editId, setEditId] = useState(null);
   const [msg, setMsg] = useState(null);
@@ -134,12 +135,20 @@ function CompanySection({ isAdmin }) {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [expandId, setExpandId] = useState(null);
+  const [showPicPicker, setShowPicPicker] = useState(false);
+  const [picSearch, setPicSearch] = useState("");
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); loadTeam(); }, []);
   const load = async () => {
     setLoading(true);
     const d = await dbGet("companies","?order=name.asc");
     setCompanies(d); setLoading(false);
+  };
+  const loadTeam = async () => {
+    try {
+      const d = await dbGet("team_members","?order=name.asc&is_active=eq.true");
+      setTeamMembers(d);
+    } catch {}
   };
 
   const handleSave = async () => {
@@ -194,7 +203,30 @@ function CompanySection({ isAdmin }) {
           <div style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:10 }}>{editId ? "✏️ Edit Perusahaan" : "➕ Tambah Perusahaan"}</div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:10 }}>
             <div style={{ gridColumn:"1/-1" }}><label style={{ fontSize:11, color:"#64748b" }}>Nama Perusahaan *</label><input style={INP} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="PT / CV / Nama Usaha" /></div>
-            <div><label style={{ fontSize:11, color:"#64748b" }}>Nama PIC</label><input style={INP} value={form.pic_name} onChange={e=>setForm(f=>({...f,pic_name:e.target.value}))} placeholder="Nama kontak" /></div>
+            <div>
+              <label style={{ fontSize:11, color:"#64748b" }}>Nama PIC</label>
+              {teamMembers.length > 0 && (
+                <div style={{ marginTop:4, marginBottom:4 }}>
+                  <button type="button" onClick={()=>setShowPicPicker(!showPicPicker)} style={{ padding:"4px 12px", borderRadius:999, fontSize:11, fontWeight:600, cursor:"pointer", border:`1px solid ${showPicPicker?"#38bdf8":"#1e293b"}`, background:showPicPicker?"#0c2a3f":"transparent", color:showPicPicker?"#38bdf8":"#475569" }}>
+                    👥 Pilih dari Tim {showPicPicker ? "▲" : "▼"}
+                  </button>
+                  {showPicPicker && (
+                    <div style={{ marginTop:6, background:"#060d1a", border:"1px solid #1e293b", borderRadius:10, padding:10 }}>
+                      <input style={{ ...INP, marginTop:0, marginBottom:8 }} placeholder="Cari nama tim..." value={picSearch} onChange={e=>setPicSearch(e.target.value)} autoFocus />
+                      <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                        {teamMembers.filter(m=>m.name.toLowerCase().includes(picSearch.toLowerCase())).map(m=>(
+                          <button key={m.id} type="button" onClick={()=>{setForm(f=>({...f,pic_name:m.name}));setShowPicPicker(false);setPicSearch("");}}
+                            style={{ padding:"5px 12px", borderRadius:999, fontSize:12, fontWeight:600, cursor:"pointer", border:`1px solid ${form.pic_name===m.name?"#10b981":"#1e293b"}`, background:form.pic_name===m.name?"#052e16":"transparent", color:form.pic_name===m.name?"#10b981":"#e2e8f0" }}>
+                            {form.pic_name===m.name && "✓ "}{m.name}{m.position?` (${m.position})`:""}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              <input style={INP} value={form.pic_name} onChange={e=>setForm(f=>({...f,pic_name:e.target.value}))} placeholder="Ketik manual atau pilih dari tim" />
+            </div>
             <div><label style={{ fontSize:11, color:"#64748b" }}>No. HP PIC</label><input style={INP} value={form.pic_phone} onChange={e=>setForm(f=>({...f,pic_phone:e.target.value}))} placeholder="08xx..." /></div>
             <div>
               <label style={{ fontSize:11, color:"#64748b", display:"block", marginBottom:4 }}>Status</label>
