@@ -5,6 +5,7 @@ import TrainingTab from "./TrainingTab";
 import KomisiPage from "./KomisiPage";
 import ProfileMenu from "./ProfileMenu";
 import ActivityPage from "./ActivityPage";
+import MasterDataPage from "./MasterDataPage";
 import { getCurrentUser, signOut, handleOAuthCallback, refreshSession } from "./auth";
 import * as XLSX from "xlsx";
 
@@ -736,9 +737,28 @@ function LaporanModal({ projects, onClose }) {
 // ─── ADD PROJECT ──────────────────────────────────────────────────────────────
 
 function AddProjectModal({ onClose, onAdd }) {
+  const SUPA_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
+  const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
   const [form, setForm] = useState({ name:"", client:"", clientEmail:"", startDate:new Date().toISOString().split("T")[0], trainTotal:40, invTotal:10 });
   const [loading, setLoading] = useState(false);
+  const [companies, setCompanies] = useState([]);
+  const [compSearch, setCompSearch] = useState("");
+  const [showCompPicker, setShowCompPicker] = useState(false);
   const f = (k,v) => setForm(x=>({...x,[k]:v}));
+
+  useEffect(() => {
+    const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPA_KEY;
+    fetch(`${SUPA_URL}/rest/v1/companies?order=name.asc`, { headers:{"apikey":SUPA_KEY,"Authorization":`Bearer ${token}`} })
+      .then(r=>r.json()).then(setCompanies).catch(()=>{});
+  }, []);
+
+  const selectCompany = (c) => {
+    setForm(x=>({...x, client:c.name, clientEmail: c.pic_phone ? "" : "", name: x.name || "" }));
+    setShowCompPicker(false); setCompSearch("");
+  };
+
+  const filteredComps = companies.filter(c => c.name.toLowerCase().includes(compSearch.toLowerCase()) || (c.pic_name||"").toLowerCase().includes(compSearch.toLowerCase()));
+
   const submit = async () => {
     if (!form.name||!form.client) { alert("Nama proyek dan nama klien wajib diisi!"); return; }
     setLoading(true);
@@ -760,8 +780,34 @@ function AddProjectModal({ onClose, onAdd }) {
     await onAdd(newProj);
     setLoading(false);
   };
+
   return (
     <Modal title="Tambah Proyek Baru" onClose={onClose}>
+      {/* Client picker from Master Perusahaan */}
+      {companies.length > 0 && (
+        <div style={{ marginBottom:16 }}>
+          <div style={{ fontSize:11, color:"#64748b", marginBottom:6 }}>Pilih dari Data Master Perusahaan (opsional)</div>
+          <button onClick={()=>setShowCompPicker(!showCompPicker)} style={{ padding:"7px 14px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", border:"1px solid #1d4ed8", background: showCompPicker?"#0c2a3f":"transparent", color:"#38bdf8" }}>
+            🏢 {form.client ? `Terpilih: ${form.client}` : "Pilih Perusahaan"}
+          </button>
+          {showCompPicker && (
+            <div style={{ marginTop:8, background:"#0a1525", border:"1px solid #1a2744", borderRadius:10, padding:12 }}>
+              <input style={{ ...INP, marginTop:0, marginBottom:10 }} placeholder="Cari perusahaan..." value={compSearch} onChange={e=>setCompSearch(e.target.value)} autoFocus />
+              <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:200, overflowY:"auto" }}>
+                {filteredComps.map(c => (
+                  <button key={c.id} onClick={()=>selectCompany(c)} style={{ padding:"9px 12px", borderRadius:8, border:"1px solid #1e293b", background:"transparent", color:"#e2e8f0", cursor:"pointer", textAlign:"left", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
+                    <span style={{ padding:"1px 8px", borderRadius:999, fontSize:10, fontWeight:700, background:c.status==="klien"?"#052e16":"#451a03", color:c.status==="klien"?"#10b981":"#f59e0b" }}>{c.status==="klien"?"Klien":"Prospek"}</span>
+                    <span style={{ fontWeight:600 }}>{c.name}</span>
+                    {c.pic_name && <span style={{ fontSize:11, color:"#475569" }}>· {c.pic_name}</span>}
+                  </button>
+                ))}
+                {filteredComps.length===0 && <div style={{ color:"#334155", fontSize:12, textAlign:"center", padding:10 }}>Tidak ditemukan</div>}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
         {[["name","Nama Proyek *","text"],["client","Nama Klien *","text"],["clientEmail","Email Klien","email"],["startDate","Tanggal Mulai","date"],["trainTotal","Total Jam Training","number"],["invTotal","Total Desain Faktur","number"]].map(([k,label,type])=>(
           <div key={k} style={MINI}>
@@ -786,6 +832,7 @@ export default function App() {
   const [showUserMgr, setShowUserMgr] = useState(false);
   const [showKomisi, setShowKomisi] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
+  const [showMaster, setShowMaster] = useState(false);
   const [projects, setProjects] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -966,6 +1013,7 @@ export default function App() {
             <button onClick={()=>setShowLaporan(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #059669", background:"#052e16", color:"#10b981", cursor:"pointer", fontWeight:600, fontSize:13 }}>📊 Laporan</button>
             {isEditor && <button onClick={()=>setShowKomisi(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #f59e0b", background:"#451a03", color:"#f59e0b", cursor:"pointer", fontWeight:600, fontSize:13 }}>💰 Komisi</button>}
             {isAdmin && <button onClick={()=>setShowActivity(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #a78bfa", background:"#1e1040", color:"#a78bfa", cursor:"pointer", fontWeight:600, fontSize:13 }}>📅 Jadwal</button>}
+            {isEditor && <button onClick={()=>setShowMaster(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #64748b", background:"#0a1525", color:"#94a3b8", cursor:"pointer", fontWeight:600, fontSize:13 }}>🗂 Data Master</button>}
             {canEdit && <button onClick={()=>setShowAdd(true)} style={{ ...BTN, padding:"10px 20px", fontSize:14 }}>+ Proyek Baru</button>}
             {isAdmin && (
               <button onClick={()=>setShowUserMgr(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #7c3aed", background:"#1e1040", color:"#a78bfa", cursor:"pointer", fontWeight:600, fontSize:13 }}>👥 Users</button>
@@ -1113,6 +1161,7 @@ export default function App() {
       {showUserMgr && isAdmin && <UserManager currentUser={currentUser} onClose={()=>setShowUserMgr(false)} />}
       {showKomisi && isEditor && <KomisiPage onClose={()=>setShowKomisi(false)} />}
       {showActivity && isAdmin && <ActivityPage onClose={()=>setShowActivity(false)} currentUser={currentUser} isAdmin={isAdmin} />}
+      {showMaster && isEditor && <MasterDataPage onClose={()=>setShowMaster(false)} isAdmin={isAdmin} />}
     </div>
   );
 }
