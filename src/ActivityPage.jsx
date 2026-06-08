@@ -280,7 +280,7 @@ function ActivityFormModal({ activity, members, companies, currentUser, onClose,
   };
 
   return (
-    <Modal title={isEdit ? "✏️ Edit Aktivitas" : "➕ Catat Aktivitas Baru"} onClose={onClose} wide>
+    <Modal title={isEdit ? "✏️ Edit Jadwal" : "➕ Buat Jadwal Baru"} onClose={onClose} wide>
       {msg && <div style={{ padding:"8px 12px", borderRadius:8, marginBottom:12, fontSize:12, background:"#1c0a0a", color:"#ef4444" }}>{msg.text}</div>}
 
       <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
@@ -371,7 +371,7 @@ function ActivityFormModal({ activity, members, companies, currentUser, onClose,
         </div>
 
         <div style={{ display:"flex", gap:10 }}>
-          <button onClick={handleSave} disabled={saving} style={{ ...BTN, background:saving?"#1e293b":"#059669", minWidth:140 }}>{saving?"Menyimpan...":"💾 Simpan Aktivitas"}</button>
+          <button onClick={handleSave} disabled={saving} style={{ ...BTN, background:saving?"#1e293b":"#059669", minWidth:140 }}>{saving?"Menyimpan...":"💾 Simpan Jadwal"}</button>
           <button onClick={onClose} style={{ ...BTN, background:"transparent", border:"1px solid #334155", color:"#64748b" }}>Batal</button>
         </div>
       </div>
@@ -457,12 +457,12 @@ export default function ActivityPage({ onClose, currentUser, isAdmin }) {
     if (id) { await dbPatch("team_activities", id, payload); }
     else { await dbPost("team_activities", payload); }
     await loadAll();
-    notify(setMsg, id ? "Aktivitas diupdate!" : "Aktivitas berhasil dicatat!");
+    notify(setMsg, id ? "Jadwal diupdate!" : "Jadwal berhasil dibuat!");
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Hapus aktivitas ini?")) return;
-    try { await dbDelete("team_activities", id); setDetailActivity(null); await loadAll(); notify(setMsg,"Aktivitas dihapus!"); }
+    if (!window.confirm("Hapus jadwal ini?")) return;
+    try { await dbDelete("team_activities", id); setDetailActivity(null); await loadAll(); notify(setMsg,"Jadwal dihapus!"); }
     catch(e) { notify(setMsg, e.message, "error"); }
   };
 
@@ -500,15 +500,15 @@ export default function ActivityPage({ onClose, currentUser, isAdmin }) {
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:28, flexWrap:"wrap", gap:16 }}>
           <div>
             <button onClick={onClose} style={{ background:"none", border:"none", color:"#475569", cursor:"pointer", fontSize:13, marginBottom:8, padding:0, display:"flex", alignItems:"center", gap:6 }}>← Kembali ke Dashboard</button>
-            <h1 style={{ fontSize:28, fontWeight:900, color:"#f1f5f9", margin:0 }}>📋 Aktivitas Tim</h1>
-            <div style={{ fontSize:13, color:"#475569", marginTop:6 }}>{!isAdmin && "Menampilkan aktivitas Anda saja"}</div>
+            <h1 style={{ fontSize:28, fontWeight:900, color:"#f1f5f9", margin:0 }}>📅 Jadwal Aktivitas</h1>
+            <div style={{ fontSize:13, color:"#475569", marginTop:6 }}>{!isAdmin && "Menampilkan jadwal Anda saja"}</div>
           </div>
           <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
             {isAdmin && <>
               <button onClick={()=>setShowTeamMaster(true)} style={{ ...BTN, background:"#0c2a3f", border:"1px solid #38bdf8", color:"#38bdf8" }}>👥 Master Tim</button>
               <button onClick={()=>setShowCompanyMaster(true)} style={{ ...BTN, background:"#0a1525", border:"1px solid #64748b", color:"#94a3b8" }}>🏢 Master Perusahaan</button>
             </>}
-            <button onClick={()=>{ setEditActivity(null); setShowForm(true); }} style={BTN}>+ Catat Aktivitas</button>
+            <button onClick={()=>{ setEditActivity(null); setShowForm(true); }} style={BTN}>+ + Buat Jadwal</button>
           </div>
         </div>
 
@@ -517,7 +517,7 @@ export default function ActivityPage({ onClose, currentUser, isAdmin }) {
 
         {/* Stats */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:20 }}>
-          {[["Total Aktivitas",stats.total,"#38bdf8","📋"],["Bulan Ini",stats.thisMonth,"#a78bfa","📅"],["Ke Klien",stats.klien,"#10b981","✅"],["Ke Prospek",stats.prospek,"#f59e0b","🎯"]].map(([l,v,c,i])=>(
+          {[["Total Jadwal",stats.total,"#38bdf8","📋"],["Bulan Ini",stats.thisMonth,"#a78bfa","📅"],["Ke Klien",stats.klien,"#10b981","✅"],["Ke Prospek",stats.prospek,"#f59e0b","🎯"]].map(([l,v,c,i])=>(
             <div key={l} style={{ background:"#0c1628", border:"1px solid #1a2744", borderRadius:12, padding:"14px 16px" }}>
               <div style={{ fontSize:20 }}>{i}</div>
               <div style={{ fontSize:26, fontWeight:800, color:c, lineHeight:1.2 }}>{v}</div>
@@ -570,11 +570,11 @@ export default function ActivityPage({ onClose, currentUser, isAdmin }) {
 
         {/* Activity List */}
         {loading ? (
-          <div style={{ textAlign:"center", padding:60, color:"#475569" }}>Memuat aktivitas...</div>
+          <div style={{ textAlign:"center", padding:60, color:"#475569" }}>Memuat jadwal...</div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign:"center", padding:60, color:"#334155" }}>
             <div style={{ fontSize:40 }}>📭</div>
-            <div style={{ marginTop:12, fontSize:15 }}>Belum ada aktivitas tercatat</div>
+            <div style={{ marginTop:12, fontSize:15 }}>Belum ada jadwal tercatat</div>
           </div>
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
