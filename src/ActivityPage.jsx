@@ -1,0 +1,589 @@
+import { useState, useEffect } from "react";
+
+const SUPABASE_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
+
+function getToken() {
+  try { return JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPABASE_KEY; }
+  catch { return SUPABASE_KEY; }
+}
+function hdrs(extra = {}) {
+  return { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": `Bearer ${getToken()}`, "Prefer": "return=representation", ...extra };
+}
+async function dbGet(table, params = "") {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${params}`, { headers: hdrs() });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function dbPost(table, body) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, { method: "POST", headers: hdrs(), body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function dbPatch(table, id, body) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, { method: "PATCH", headers: hdrs(), body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function dbDelete(table, id) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, { method: "DELETE", headers: hdrs() });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+const INP = { width:"100%", background:"#0c1628", border:"1px solid #1e293b", borderRadius:8, padding:"8px 10px", color:"#e2e8f0", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box", marginTop:4 };
+const MINI = { background:"#0a1525", border:"1px solid #1a2744", borderRadius:10, padding:14 };
+const BTN = { padding:"9px 20px", borderRadius:8, border:"none", background:"#1d4ed8", color:"#fff", cursor:"pointer", fontWeight:600, fontSize:13 };
+
+const ACT_CONFIG = {
+  presentasi: { color:"#a78bfa", bg:"#1e1040", icon:"📊", label:"Presentasi" },
+  meeting:    { color:"#38bdf8", bg:"#0c2a3f", icon:"🤝", label:"Meeting" },
+  onsite:     { color:"#10b981", bg:"#052e16", icon:"🔧", label:"Onsite" },
+  training:   { color:"#f59e0b", bg:"#451a03", icon:"📚", label:"Training" },
+};
+const STATUS_CONFIG = {
+  prospek: { color:"#f59e0b", bg:"#451a03", label:"Prospek" },
+  klien:   { color:"#10b981", bg:"#052e16", label:"Klien" },
+};
+
+function Badge({ type, config }) {
+  const c = config[type] || {};
+  return <span style={{ padding:"2px 10px", borderRadius:999, fontSize:11, fontWeight:700, background:c.bg, color:c.color }}>{c.icon ? `${c.icon} ${c.label}` : c.label}</span>;
+}
+
+function fmtDate(d) {
+  if (!d) return "-";
+  const [y,m,day] = d.split("-");
+  const months = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+  return `${parseInt(day)} ${months[parseInt(m)-1]} ${y}`;
+}
+
+function notify(setter, text, type="success") {
+  setter({ text, type });
+  setTimeout(() => setter(null), 3000);
+}
+
+// ─── MODAL WRAPPER ────────────────────────────────────────────────────────────
+function Modal({ title, onClose, children, wide }) {
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#00000099", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={onClose}>
+      <div style={{ background:"#0f172a", border:"1px solid #1e293b", borderRadius:16, padding:28, maxWidth:wide?860:520, width:"100%", maxHeight:"90vh", overflowY:"auto", fontFamily:"inherit" }} onClick={e=>e.stopPropagation()}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+          <div style={{ fontSize:17, fontWeight:700, color:"#f1f5f9" }}>{title}</div>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#64748b", fontSize:22, cursor:"pointer" }}>✕</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─── MASTER TIM ───────────────────────────────────────────────────────────────
+function TeamMasterModal({ onClose }) {
+  const [members, setMembers] = useState([]);
+  const [form, setForm] = useState({ name:"", position:"" });
+  const [editId, setEditId] = useState(null);
+  const [msg, setMsg] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { load(); }, []);
+  const load = async () => { setLoading(true); const d = await dbGet("team_members","?order=name.asc"); setMembers(d); setLoading(false); };
+
+  const handleSave = async () => {
+    if (!form.name.trim()) { notify(setMsg,"Nama wajib diisi","error"); return; }
+    try {
+      if (editId) { await dbPatch("team_members", editId, { name:form.name, position:form.position }); }
+      else { await dbPost("team_members", { name:form.name, position:form.position }); }
+      notify(setMsg, editId ? "Berhasil diupdate!" : "Anggota tim ditambahkan!");
+      setForm({ name:"", position:"" }); setEditId(null); load();
+    } catch(e) { notify(setMsg, e.message, "error"); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Hapus anggota tim ini?")) return;
+    try { await dbDelete("team_members", id); load(); notify(setMsg,"Berhasil dihapus!"); }
+    catch(e) { notify(setMsg, e.message, "error"); }
+  };
+
+  const handleEdit = (m) => { setEditId(m.id); setForm({ name:m.name, position:m.position||"" }); };
+
+  return (
+    <Modal title="👥 Master Data Tim" onClose={onClose}>
+      {msg && <div style={{ padding:"8px 12px", borderRadius:8, marginBottom:14, fontSize:12, background:msg.type==="error"?"#1c0a0a":"#052e16", color:msg.type==="error"?"#ef4444":"#10b981" }}>{msg.text}</div>}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+        <div><label style={{ fontSize:11, color:"#64748b" }}>Nama *</label><input style={INP} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Nama anggota tim" /></div>
+        <div><label style={{ fontSize:11, color:"#64748b" }}>Posisi / Jabatan</label><input style={INP} value={form.position} onChange={e=>setForm(f=>({...f,position:e.target.value}))} placeholder="Sales, Teknisi, dll" /></div>
+      </div>
+      <div style={{ display:"flex", gap:8, marginBottom:20 }}>
+        <button onClick={handleSave} style={BTN}>{editId?"💾 Update":"+ Tambah"}</button>
+        {editId && <button onClick={()=>{setEditId(null);setForm({name:"",position:""}); }} style={{ ...BTN, background:"transparent", border:"1px solid #334155", color:"#64748b" }}>Batal</button>}
+      </div>
+      {loading ? <div style={{ color:"#475569", textAlign:"center", padding:20 }}>Memuat...</div> : (
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {members.map(m => (
+            <div key={m.id} style={{ ...MINI, display:"flex", alignItems:"center", gap:12 }}>
+              <div style={{ width:36, height:36, borderRadius:"50%", background:"linear-gradient(135deg,#1d4ed8,#7c3aed)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:700, fontSize:14, flexShrink:0 }}>{m.name.charAt(0).toUpperCase()}</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:13, fontWeight:600, color:"#e2e8f0" }}>{m.name}</div>
+                <div style={{ fontSize:11, color:"#475569" }}>{m.position || "—"}</div>
+              </div>
+              <button onClick={()=>handleEdit(m)} style={{ padding:"4px 10px", borderRadius:6, border:"1px solid #1d4ed8", background:"transparent", color:"#38bdf8", cursor:"pointer", fontSize:11 }}>✏️</button>
+              <button onClick={()=>handleDelete(m.id)} style={{ padding:"4px 10px", borderRadius:6, border:"1px solid #7f1d1d", background:"transparent", color:"#ef4444", cursor:"pointer", fontSize:11 }}>🗑</button>
+            </div>
+          ))}
+          {members.length === 0 && <div style={{ textAlign:"center", color:"#334155", padding:20 }}>Belum ada anggota tim</div>}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+// ─── MASTER PERUSAHAAN ────────────────────────────────────────────────────────
+function CompanyMasterModal({ onClose }) {
+  const [companies, setCompanies] = useState([]);
+  const [form, setForm] = useState({ name:"", pic_name:"", pic_phone:"", address:"", status:"prospek", notes:"" });
+  const [editId, setEditId] = useState(null);
+  const [msg, setMsg] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => { load(); }, []);
+  const load = async () => { setLoading(true); const d = await dbGet("companies","?order=name.asc"); setCompanies(d); setLoading(false); };
+
+  const handleSave = async () => {
+    if (!form.name.trim()) { notify(setMsg,"Nama perusahaan wajib diisi","error"); return; }
+    try {
+      if (editId) { await dbPatch("companies", editId, form); }
+      else { await dbPost("companies", form); }
+      notify(setMsg, editId ? "Perusahaan diupdate!" : "Perusahaan ditambahkan!");
+      setForm({ name:"", pic_name:"", pic_phone:"", address:"", status:"prospek", notes:"" });
+      setEditId(null); load();
+    } catch(e) { notify(setMsg, e.message, "error"); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Hapus perusahaan ini?")) return;
+    try { await dbDelete("companies", id); load(); notify(setMsg,"Berhasil dihapus!"); }
+    catch(e) { notify(setMsg, e.message, "error"); }
+  };
+
+  const handleEdit = (c) => { setEditId(c.id); setForm({ name:c.name, pic_name:c.pic_name||"", pic_phone:c.pic_phone||"", address:c.address||"", status:c.status||"prospek", notes:c.notes||"" }); };
+
+  const filtered = companies.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.pic_name||"").toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <Modal title="🏢 Master Data Perusahaan" onClose={onClose} wide>
+      {msg && <div style={{ padding:"8px 12px", borderRadius:8, marginBottom:14, fontSize:12, background:msg.type==="error"?"#1c0a0a":"#052e16", color:msg.type==="error"?"#ef4444":"#10b981" }}>{msg.text}</div>}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:10 }}>
+        <div style={{ gridColumn:"1/-1" }}><label style={{ fontSize:11, color:"#64748b" }}>Nama Perusahaan *</label><input style={INP} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="PT / CV / Nama Usaha" /></div>
+        <div><label style={{ fontSize:11, color:"#64748b" }}>Nama PIC</label><input style={INP} value={form.pic_name} onChange={e=>setForm(f=>({...f,pic_name:e.target.value}))} placeholder="Nama kontak" /></div>
+        <div><label style={{ fontSize:11, color:"#64748b" }}>No. HP PIC</label><input style={INP} value={form.pic_phone} onChange={e=>setForm(f=>({...f,pic_phone:e.target.value}))} placeholder="08xx..." /></div>
+        <div>
+          <label style={{ fontSize:11, color:"#64748b" }}>Status</label>
+          <div style={{ display:"flex", gap:6, marginTop:4 }}>
+            {[["prospek","Prospek","#f59e0b"],["klien","Klien","#10b981"]].map(([v,l,c])=>(
+              <button key={v} onClick={()=>setForm(f=>({...f,status:v}))} style={{ flex:1, padding:"7px", borderRadius:8, fontSize:12, fontWeight:700, cursor:"pointer", border:`1px solid ${form.status===v?c:"#1e293b"}`, background:form.status===v?STATUS_CONFIG[v].bg:"transparent", color:form.status===v?c:"#475569" }}>{l}</button>
+            ))}
+          </div>
+        </div>
+        <div style={{ gridColumn:"1/-1" }}><label style={{ fontSize:11, color:"#64748b" }}>Alamat</label><input style={INP} value={form.address} onChange={e=>setForm(f=>({...f,address:e.target.value}))} placeholder="Alamat perusahaan" /></div>
+        <div style={{ gridColumn:"1/-1" }}><label style={{ fontSize:11, color:"#64748b" }}>Catatan</label><textarea style={{ ...INP, resize:"vertical" }} rows={2} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Info tambahan..." /></div>
+      </div>
+      <div style={{ display:"flex", gap:8, marginBottom:20 }}>
+        <button onClick={handleSave} style={BTN}>{editId?"💾 Update":"+ Tambah"}</button>
+        {editId && <button onClick={()=>{setEditId(null);setForm({name:"",pic_name:"",pic_phone:"",address:"",status:"prospek",notes:""}); }} style={{ ...BTN, background:"transparent", border:"1px solid #334155", color:"#64748b" }}>Batal</button>}
+      </div>
+      <div style={{ position:"relative", marginBottom:12 }}>
+        <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"#475569" }}>🔍</span>
+        <input style={{ ...INP, marginTop:0, paddingLeft:32 }} placeholder="Cari perusahaan..." value={search} onChange={e=>setSearch(e.target.value)} />
+      </div>
+      {loading ? <div style={{ color:"#475569", textAlign:"center", padding:20 }}>Memuat...</div> : (
+        <div style={{ display:"flex", flexDirection:"column", gap:8, maxHeight:320, overflowY:"auto" }}>
+          {filtered.map(c => (
+            <div key={c.id} style={{ ...MINI, display:"flex", alignItems:"center", gap:12 }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:2 }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:"#e2e8f0" }}>{c.name}</span>
+                  <Badge type={c.status} config={STATUS_CONFIG} />
+                </div>
+                <div style={{ fontSize:11, color:"#475569" }}>{c.pic_name && `👤 ${c.pic_name}`} {c.pic_phone && `· 📞 ${c.pic_phone}`}</div>
+                {c.address && <div style={{ fontSize:11, color:"#334155" }}>📍 {c.address}</div>}
+              </div>
+              <button onClick={()=>handleEdit(c)} style={{ padding:"4px 10px", borderRadius:6, border:"1px solid #1d4ed8", background:"transparent", color:"#38bdf8", cursor:"pointer", fontSize:11 }}>✏️</button>
+              <button onClick={()=>handleDelete(c.id)} style={{ padding:"4px 10px", borderRadius:6, border:"1px solid #7f1d1d", background:"transparent", color:"#ef4444", cursor:"pointer", fontSize:11 }}>🗑</button>
+            </div>
+          ))}
+          {filtered.length === 0 && <div style={{ textAlign:"center", color:"#334155", padding:20 }}>Tidak ada perusahaan</div>}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+// ─── FORM AKTIVITAS ───────────────────────────────────────────────────────────
+function ActivityFormModal({ activity, members, companies, currentUser, onClose, onSave }) {
+  const isEdit = !!activity;
+  const [form, setForm] = useState(activity ? {
+    activity_date: activity.activity_date,
+    activity_type: activity.activity_type,
+    team_member_id: activity.team_member_id || "",
+    team_member_name: activity.team_member_name,
+    company_id: activity.company_id || "",
+    company_name: activity.company_name,
+    company_status: activity.company_status || "prospek",
+    outcome: activity.outcome || "",
+    notes: activity.notes || "",
+    follow_up: activity.follow_up || "",
+  } : {
+    activity_date: new Date().toISOString().split("T")[0],
+    activity_type: "meeting",
+    team_member_id: "",
+    team_member_name: "",
+    company_id: "",
+    company_name: "",
+    company_status: "prospek",
+    outcome: "",
+    notes: "",
+    follow_up: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  const selectMember = (m) => setForm(f => ({ ...f, team_member_id: m.id, team_member_name: m.name }));
+  const selectCompany = (c) => setForm(f => ({ ...f, company_id: c.id, company_name: c.name, company_status: c.status }));
+
+  const handleSave = async () => {
+    if (!form.activity_date || !form.team_member_name || !form.company_name) {
+      notify(setMsg, "Tanggal, anggota tim, dan perusahaan wajib diisi", "error"); return;
+    }
+    setSaving(true);
+    try {
+      const payload = { ...form, created_by: currentUser?.id };
+      await onSave(payload, activity?.id);
+      onClose();
+    } catch(e) { notify(setMsg, e.message, "error"); }
+    setSaving(false);
+  };
+
+  return (
+    <Modal title={isEdit ? "✏️ Edit Aktivitas" : "➕ Catat Aktivitas Baru"} onClose={onClose} wide>
+      {msg && <div style={{ padding:"8px 12px", borderRadius:8, marginBottom:12, fontSize:12, background:"#1c0a0a", color:"#ef4444" }}>{msg.text}</div>}
+
+      <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+        {/* Jenis & Tanggal */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+          <div>
+            <label style={{ fontSize:11, color:"#64748b" }}>Tanggal *</label>
+            <input type="date" style={INP} value={form.activity_date} onChange={e=>setForm(f=>({...f,activity_date:e.target.value}))} />
+          </div>
+          <div>
+            <label style={{ fontSize:11, color:"#64748b", display:"block", marginBottom:4 }}>Jenis Aktivitas *</label>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
+              {Object.entries(ACT_CONFIG).map(([v,c]) => (
+                <button key={v} onClick={()=>setForm(f=>({...f,activity_type:v}))} style={{ padding:"7px 6px", borderRadius:8, fontSize:11, fontWeight:700, cursor:"pointer", border:`1px solid ${form.activity_type===v?c.color:"#1e293b"}`, background:form.activity_type===v?c.bg:"transparent", color:form.activity_type===v?c.color:"#475569" }}>
+                  {c.icon} {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Anggota Tim */}
+        <div style={MINI}>
+          <div style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:8 }}>👤 Anggota Tim *</div>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom: form.team_member_name ? 8 : 0 }}>
+            {members.map(m => (
+              <button key={m.id} onClick={()=>selectMember(m)} style={{ padding:"5px 12px", borderRadius:999, fontSize:12, fontWeight:600, cursor:"pointer", border:`1px solid ${form.team_member_id===m.id?"#38bdf8":"#1e293b"}`, background:form.team_member_id===m.id?"#0c2a3f":"transparent", color:form.team_member_id===m.id?"#38bdf8":"#475569" }}>
+                {m.name}
+              </button>
+            ))}
+          </div>
+          {form.team_member_name && (
+            <div style={{ fontSize:11, color:"#38bdf8", marginTop:4 }}>✓ {form.team_member_name}</div>
+          )}
+        </div>
+
+        {/* Perusahaan */}
+        <div style={MINI}>
+          <div style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:8 }}>🏢 Perusahaan *</div>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap", maxHeight:120, overflowY:"auto", marginBottom: form.company_name ? 8 : 0 }}>
+            {companies.map(c => (
+              <button key={c.id} onClick={()=>selectCompany(c)} style={{ padding:"5px 12px", borderRadius:999, fontSize:12, fontWeight:600, cursor:"pointer", border:`1px solid ${form.company_id===c.id?(c.status==="klien"?"#10b981":"#f59e0b"):"#1e293b"}`, background:form.company_id===c.id?(c.status==="klien"?"#052e16":"#451a03"):"transparent", color:form.company_id===c.id?(c.status==="klien"?"#10b981":"#f59e0b"):"#475569" }}>
+                {c.name}
+              </button>
+            ))}
+          </div>
+          {form.company_name && (
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
+              <span style={{ fontSize:11, color:"#10b981" }}>✓ {form.company_name}</span>
+              <Badge type={form.company_status} config={STATUS_CONFIG} />
+            </div>
+          )}
+        </div>
+
+        {/* Outcome */}
+        <div>
+          <label style={{ fontSize:11, color:"#64748b" }}>Hasil / Outcome</label>
+          <textarea style={{ ...INP, resize:"vertical" }} rows={2} value={form.outcome} onChange={e=>setForm(f=>({...f,outcome:e.target.value}))} placeholder="Hasil yang dicapai dari aktivitas ini..." />
+        </div>
+
+        {/* Catatan & Follow-up */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+          <div>
+            <label style={{ fontSize:11, color:"#64748b" }}>Catatan Tambahan</label>
+            <textarea style={{ ...INP, resize:"vertical" }} rows={2} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Info tambahan..." />
+          </div>
+          <div>
+            <label style={{ fontSize:11, color:"#64748b" }}>Follow-up / Rencana Berikutnya</label>
+            <textarea style={{ ...INP, resize:"vertical" }} rows={2} value={form.follow_up} onChange={e=>setForm(f=>({...f,follow_up:e.target.value}))} placeholder="Tindak lanjut yang perlu dilakukan..." />
+          </div>
+        </div>
+
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={handleSave} disabled={saving} style={{ ...BTN, background:saving?"#1e293b":"#059669", minWidth:140 }}>{saving?"Menyimpan...":"💾 Simpan Aktivitas"}</button>
+          <button onClick={onClose} style={{ ...BTN, background:"transparent", border:"1px solid #334155", color:"#64748b" }}>Batal</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── DETAIL AKTIVITAS ─────────────────────────────────────────────────────────
+function ActivityDetailModal({ activity, onClose, onEdit, onDelete, isAdmin }) {
+  const ac = ACT_CONFIG[activity.activity_type] || ACT_CONFIG.meeting;
+  return (
+    <Modal title={`${ac.icon} Detail Aktivitas`} onClose={onClose}>
+      <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+        <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+          <Badge type={activity.activity_type} config={ACT_CONFIG} />
+          <Badge type={activity.company_status || "prospek"} config={STATUS_CONFIG} />
+          <span style={{ fontSize:12, color:"#475569" }}>📅 {fmtDate(activity.activity_date)}</span>
+        </div>
+        {[
+          ["👤 Anggota Tim", activity.team_member_name],
+          ["🏢 Perusahaan", activity.company_name],
+          ["✅ Outcome", activity.outcome || "-"],
+          ["📝 Catatan", activity.notes || "-"],
+          ["🔄 Follow-up", activity.follow_up || "-"],
+        ].map(([label, val]) => (
+          <div key={label} style={MINI}>
+            <div style={{ fontSize:11, color:"#475569", marginBottom:4 }}>{label}</div>
+            <div style={{ fontSize:13, color:"#e2e8f0", whiteSpace:"pre-wrap" }}>{val}</div>
+          </div>
+        ))}
+        {isAdmin && (
+          <div style={{ display:"flex", gap:10, marginTop:4 }}>
+            <button onClick={onEdit} style={{ ...BTN }}>✏️ Edit</button>
+            <button onClick={onDelete} style={{ ...BTN, background:"#1c0a0a", border:"1px solid #7f1d1d", color:"#ef4444" }}>🗑 Hapus</button>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
+export default function ActivityPage({ onClose, currentUser, isAdmin }) {
+  const [activities, setActivities] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState(null);
+
+  const [showForm, setShowForm] = useState(false);
+  const [editActivity, setEditActivity] = useState(null);
+  const [detailActivity, setDetailActivity] = useState(null);
+  const [showTeamMaster, setShowTeamMaster] = useState(false);
+  const [showCompanyMaster, setShowCompanyMaster] = useState(false);
+
+  // Filters
+  const [filterType, setFilterType] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterMember, setFilterMember] = useState("all");
+  const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  useEffect(() => { loadAll(); }, []);
+
+  const loadAll = async () => {
+    setLoading(true);
+    try {
+      const [acts, mems, comps] = await Promise.all([
+        dbGet("team_activities", "?order=activity_date.desc,created_at.desc"),
+        dbGet("team_members", "?order=name.asc&is_active=eq.true"),
+        dbGet("companies", "?order=name.asc"),
+      ]);
+      setActivities(acts);
+      setMembers(mems);
+      setCompanies(comps);
+    } catch(e) { notify(setMsg, e.message, "error"); }
+    setLoading(false);
+  };
+
+  const handleSave = async (payload, id) => {
+    if (id) { await dbPatch("team_activities", id, payload); }
+    else { await dbPost("team_activities", payload); }
+    await loadAll();
+    notify(setMsg, id ? "Aktivitas diupdate!" : "Aktivitas berhasil dicatat!");
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Hapus aktivitas ini?")) return;
+    try { await dbDelete("team_activities", id); setDetailActivity(null); await loadAll(); notify(setMsg,"Aktivitas dihapus!"); }
+    catch(e) { notify(setMsg, e.message, "error"); }
+  };
+
+  // Filter
+  const userId = currentUser?.id;
+  const userName = currentUser?.profile?.full_name || currentUser?.email;
+
+  const filtered = activities.filter(a => {
+    if (!isAdmin && a.created_by !== userId && a.team_member_name !== userName) return false;
+    if (filterType !== "all" && a.activity_type !== filterType) return false;
+    if (filterStatus !== "all" && a.company_status !== filterStatus) return false;
+    if (filterMember !== "all" && a.team_member_name !== filterMember) return false;
+    if (search && !a.company_name.toLowerCase().includes(search.toLowerCase()) && !a.team_member_name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (dateFrom && a.activity_date < dateFrom) return false;
+    if (dateTo && a.activity_date > dateTo) return false;
+    return true;
+  });
+
+  const uniqueMembers = [...new Set(activities.map(a => a.team_member_name))].sort();
+
+  // Stats
+  const stats = {
+    total: filtered.length,
+    klien: filtered.filter(a => a.company_status === "klien").length,
+    prospek: filtered.filter(a => a.company_status === "prospek").length,
+    thisMonth: filtered.filter(a => a.activity_date?.startsWith(new Date().toISOString().slice(0,7))).length,
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#060d1a", zIndex:2000, overflowY:"auto", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif", color:"#e2e8f0" }}>
+      <style>{`*,*::before,*::after{box-sizing:border-box}::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#0c1628}::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:3px}`}</style>
+      <div style={{ maxWidth:1100, margin:"0 auto", padding:"28px 20px" }}>
+
+        {/* Header */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:28, flexWrap:"wrap", gap:16 }}>
+          <div>
+            <button onClick={onClose} style={{ background:"none", border:"none", color:"#475569", cursor:"pointer", fontSize:13, marginBottom:8, padding:0, display:"flex", alignItems:"center", gap:6 }}>← Kembali ke Dashboard</button>
+            <h1 style={{ fontSize:28, fontWeight:900, color:"#f1f5f9", margin:0 }}>📋 Aktivitas Tim</h1>
+            <div style={{ fontSize:13, color:"#475569", marginTop:6 }}>{!isAdmin && "Menampilkan aktivitas Anda saja"}</div>
+          </div>
+          <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+            {isAdmin && <>
+              <button onClick={()=>setShowTeamMaster(true)} style={{ ...BTN, background:"#0c2a3f", border:"1px solid #38bdf8", color:"#38bdf8" }}>👥 Master Tim</button>
+              <button onClick={()=>setShowCompanyMaster(true)} style={{ ...BTN, background:"#0a1525", border:"1px solid #64748b", color:"#94a3b8" }}>🏢 Master Perusahaan</button>
+            </>}
+            <button onClick={()=>{ setEditActivity(null); setShowForm(true); }} style={BTN}>+ Catat Aktivitas</button>
+          </div>
+        </div>
+
+        {/* Notification */}
+        {msg && <div style={{ padding:"10px 14px", borderRadius:10, marginBottom:16, fontSize:13, background:msg.type==="error"?"#1c0a0a":"#052e16", color:msg.type==="error"?"#ef4444":"#10b981", border:`1px solid ${msg.type==="error"?"#ef444433":"#10b98133"}` }}>{msg.text}</div>}
+
+        {/* Stats */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:20 }}>
+          {[["Total Aktivitas",stats.total,"#38bdf8","📋"],["Bulan Ini",stats.thisMonth,"#a78bfa","📅"],["Ke Klien",stats.klien,"#10b981","✅"],["Ke Prospek",stats.prospek,"#f59e0b","🎯"]].map(([l,v,c,i])=>(
+            <div key={l} style={{ background:"#0c1628", border:"1px solid #1a2744", borderRadius:12, padding:"14px 16px" }}>
+              <div style={{ fontSize:20 }}>{i}</div>
+              <div style={{ fontSize:26, fontWeight:800, color:c, lineHeight:1.2 }}>{v}</div>
+              <div style={{ fontSize:11, color:"#475569" }}>{l}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div style={{ ...MINI, marginBottom:20 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:10, marginBottom:12 }}>
+            <div>
+              <label style={{ fontSize:11, color:"#64748b", display:"block", marginBottom:4 }}>Dari Tanggal</label>
+              <input type="date" style={{ ...INP, marginTop:0 }} value={dateFrom} onChange={e=>setDateFrom(e.target.value)} />
+            </div>
+            <div>
+              <label style={{ fontSize:11, color:"#64748b", display:"block", marginBottom:4 }}>Sampai Tanggal</label>
+              <input type="date" style={{ ...INP, marginTop:0 }} value={dateTo} onChange={e=>setDateTo(e.target.value)} />
+            </div>
+            <div>
+              <label style={{ fontSize:11, color:"#64748b", display:"block", marginBottom:4 }}>Anggota Tim</label>
+              <select style={{ ...INP, marginTop:0, cursor:"pointer" }} value={filterMember} onChange={e=>setFilterMember(e.target.value)}>
+                <option value="all">Semua</option>
+                {uniqueMembers.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize:11, color:"#64748b", display:"block", marginBottom:4 }}>Cari Perusahaan / Tim</label>
+              <div style={{ position:"relative" }}>
+                <span style={{ position:"absolute", left:8, top:"50%", transform:"translateY(-50%)", color:"#475569", fontSize:12 }}>🔍</span>
+                <input style={{ ...INP, marginTop:0, paddingLeft:28 }} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Ketik nama..." />
+              </div>
+            </div>
+          </div>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            {/* Activity type */}
+            {[["all","Semua","#64748b"],["presentasi","📊 Presentasi","#a78bfa"],["meeting","🤝 Meeting","#38bdf8"],["onsite","🔧 Onsite","#10b981"],["training","📚 Training","#f59e0b"]].map(([v,l,c])=>(
+              <button key={v} onClick={()=>setFilterType(v)} style={{ padding:"5px 12px", borderRadius:999, fontSize:11, fontWeight:600, cursor:"pointer", border:`1px solid ${filterType===v?c:"#1e293b"}`, background:filterType===v?"#0c1628":"transparent", color:filterType===v?c:"#475569" }}>{l}</button>
+            ))}
+            <div style={{ width:1, background:"#1e293b", margin:"0 4px" }} />
+            {[["all","Semua","#64748b"],["klien","Klien","#10b981"],["prospek","Prospek","#f59e0b"]].map(([v,l,c])=>(
+              <button key={v} onClick={()=>setFilterStatus(v)} style={{ padding:"5px 12px", borderRadius:999, fontSize:11, fontWeight:600, cursor:"pointer", border:`1px solid ${filterStatus===v?c:"#1e293b"}`, background:filterStatus===v?"#0c1628":"transparent", color:filterStatus===v?c:"#475569" }}>{l}</button>
+            ))}
+            {(filterType!=="all"||filterStatus!=="all"||filterMember!=="all"||search||dateFrom||dateTo) && (
+              <button onClick={()=>{setFilterType("all");setFilterStatus("all");setFilterMember("all");setSearch("");setDateFrom("");setDateTo("");}} style={{ padding:"5px 12px", borderRadius:999, fontSize:11, cursor:"pointer", border:"1px solid #334155", background:"transparent", color:"#64748b" }}>✕ Reset</button>
+            )}
+          </div>
+          <div style={{ marginTop:10, fontSize:12, color:"#334155" }}>Menampilkan <span style={{ color:"#38bdf8", fontWeight:600 }}>{filtered.length}</span> aktivitas</div>
+        </div>
+
+        {/* Activity List */}
+        {loading ? (
+          <div style={{ textAlign:"center", padding:60, color:"#475569" }}>Memuat aktivitas...</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign:"center", padding:60, color:"#334155" }}>
+            <div style={{ fontSize:40 }}>📭</div>
+            <div style={{ marginTop:12, fontSize:15 }}>Belum ada aktivitas tercatat</div>
+          </div>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            {filtered.map(a => {
+              const ac = ACT_CONFIG[a.activity_type] || ACT_CONFIG.meeting;
+              const sc = STATUS_CONFIG[a.company_status] || STATUS_CONFIG.prospek;
+              return (
+                <div key={a.id} onClick={()=>setDetailActivity(a)} style={{ background:"#0c1628", border:"1px solid #1a2744", borderRadius:14, padding:18, cursor:"pointer", transition:"border-color 0.2s, transform 0.1s" }}
+                  onMouseEnter={e=>{e.currentTarget.style.borderColor="#2563eb";e.currentTarget.style.transform="translateY(-1px)";}}
+                  onMouseLeave={e=>{e.currentTarget.style.borderColor="#1a2744";e.currentTarget.style.transform="translateY(0)";}}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12, flexWrap:"wrap" }}>
+                    <div style={{ display:"flex", gap:10, alignItems:"flex-start", flex:1, minWidth:0 }}>
+                      <div style={{ width:42, height:42, borderRadius:12, background:ac.bg, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0, border:`1px solid ${ac.color}33` }}>{ac.icon}</div>
+                      <div style={{ minWidth:0 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:4 }}>
+                          <span style={{ fontSize:14, fontWeight:700, color:"#f1f5f9" }}>{a.company_name}</span>
+                          <Badge type={a.company_status||"prospek"} config={STATUS_CONFIG} />
+                          <Badge type={a.activity_type} config={ACT_CONFIG} />
+                        </div>
+                        <div style={{ fontSize:12, color:"#475569" }}>
+                          👤 {a.team_member_name} · 📅 {fmtDate(a.activity_date)}
+                        </div>
+                        {a.outcome && <div style={{ fontSize:12, color:"#64748b", marginTop:4 }}>✅ {a.outcome.slice(0,80)}{a.outcome.length>80?"...":""}</div>}
+                        {a.follow_up && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>🔄 {a.follow_up.slice(0,60)}{a.follow_up.length>60?"...":""}</div>}
+                      </div>
+                    </div>
+                    <div style={{ fontSize:11, color:"#334155", flexShrink:0 }}>Klik untuk detail →</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Modals */}
+      {showForm && <ActivityFormModal activity={editActivity} members={members} companies={companies} currentUser={currentUser} onClose={()=>{setShowForm(false);setEditActivity(null);}} onSave={handleSave} />}
+      {detailActivity && <ActivityDetailModal activity={detailActivity} onClose={()=>setDetailActivity(null)} isAdmin={isAdmin}
+        onEdit={()=>{setEditActivity(detailActivity);setDetailActivity(null);setShowForm(true);}}
+        onDelete={()=>handleDelete(detailActivity.id)} />}
+      {showTeamMaster && <TeamMasterModal onClose={()=>{setShowTeamMaster(false);loadAll();}} />}
+      {showCompanyMaster && <CompanyMasterModal onClose={()=>{setShowCompanyMaster(false);loadAll();}} />}
+    </div>
+  );
+}
