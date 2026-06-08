@@ -965,7 +965,7 @@ export default function App() {
           <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
             <button onClick={()=>setShowLaporan(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #059669", background:"#052e16", color:"#10b981", cursor:"pointer", fontWeight:600, fontSize:13 }}>📊 Laporan</button>
             {isEditor && <button onClick={()=>setShowKomisi(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #f59e0b", background:"#451a03", color:"#f59e0b", cursor:"pointer", fontWeight:600, fontSize:13 }}>💰 Komisi</button>}
-            {isAdmin && <button onClick={()=>setShowActivity(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #a78bfa", background:"#1e1040", color:"#a78bfa", cursor:"pointer", fontWeight:600, fontSize:13 }}>📋 Aktivitas</button>}
+            {isAdmin && <button onClick={()=>setShowActivity(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #a78bfa", background:"#1e1040", color:"#a78bfa", cursor:"pointer", fontWeight:600, fontSize:13 }}>📅 Jadwal</button>}
             {canEdit && <button onClick={()=>setShowAdd(true)} style={{ ...BTN, padding:"10px 20px", fontSize:14 }}>+ Proyek Baru</button>}
             {isAdmin && (
               <button onClick={()=>setShowUserMgr(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #7c3aed", background:"#1e1040", color:"#a78bfa", cursor:"pointer", fontWeight:600, fontSize:13 }}>👥 Users</button>
