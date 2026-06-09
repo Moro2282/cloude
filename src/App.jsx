@@ -1004,8 +1004,8 @@ export default function App() {
 
         <div style={{ marginBottom:32, display:"flex", justifyContent:"space-between", alignItems:"flex-end", flexWrap:"wrap", gap:16 }}>
           <div>
-            <div style={{ fontSize:11, color:"#334155", letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>Project Management</div>
-            <h1 style={{ fontSize:34, fontWeight:900, color:"#f1f5f9", lineHeight:1, margin:0 }}>Dashboard Proyek</h1>
+            <div style={{ fontSize:11, color:"#334155", letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>Activity KGB</div>
+            <h1 style={{ fontSize:34, fontWeight:900, color:"#f1f5f9", lineHeight:1, margin:0 }}>Aktivity KGB</h1>
             <div style={{ fontSize:14, color:"#475569", marginTop:6 }}>
               {projects.length} proyek aktif · 
               <span style={{ color:"#10b981", marginLeft:4 }}>● Terhubung ke Supabase</span>
