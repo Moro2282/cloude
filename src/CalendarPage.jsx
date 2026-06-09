@@ -35,7 +35,7 @@ function toYMD(date) {
 // ─── EVENT CONFIG ─────────────────────────────────────────────────────────────
 const EVENT_CONFIG = {
   activity:        { color:"#a78bfa", bg:"#1e1040", dot:"#a78bfa", label:"Jadwal Aktivitas" },
-  training:        { color:"#38bdf8", bg:"#0c2a3f", dot:"#38bdf8", label:"Sesi Training" },
+  training:        { color:"#38bdf8", bg:"#0c2a3f", dot:"#38bdf8", label:"Sesi Layanan" },
   support_warning: { color:"#f59e0b", bg:"#451a03", dot:"#f59e0b", label:"Support Hampir Habis" },
   support_expired: { color:"#ef4444", bg:"#450a0a", dot:"#ef4444", label:"Support Expired" },
   server_warning:  { color:"#fb923c", bg:"#431407", dot:"#fb923c", label:"Server Hampir Habis" },
@@ -63,7 +63,7 @@ function buildEvents(activities, trainingSessions, projects) {
     });
   });
 
-  // Sesi Training
+  // Sesi Layanan
   trainingSessions.forEach(s => {
     if (!s.training_date) return;
     events.push({
@@ -410,7 +410,7 @@ export default function CalendarPage({ onClose, projects }) {
         <div style={{ background:"#0a1525", border:"1px solid #1a2744", borderRadius:12, padding:"12px 16px", marginBottom:20, display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
           <span style={{ fontSize:11, color:"#475569", marginRight:4 }}>Filter:</span>
           <FilterChip active={showActivity} onClick={()=>setShowActivity(!showActivity)} color="#a78bfa" label="Jadwal Aktivitas" />
-          <FilterChip active={showTraining} onClick={()=>setShowTraining(!showTraining)} color="#38bdf8" label="Sesi Training" />
+          <FilterChip active={showTraining} onClick={()=>setShowTraining(!showTraining)} color="#38bdf8" label="Sesi Layanan" />
           <FilterChip active={showSupport} onClick={()=>setShowSupport(!showSupport)} color="#f59e0b" label="Free Support" />
           <FilterChip active={showServer} onClick={()=>setShowServer(!showServer)} color="#fb923c" label="Server" />
           <div style={{ marginLeft:"auto", display:"flex", gap:6 }}>
