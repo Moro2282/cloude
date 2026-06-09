@@ -6,6 +6,7 @@ import KomisiPage from "./KomisiPage";
 import ProfileMenu from "./ProfileMenu";
 import ActivityPage from "./ActivityPage";
 import MasterDataPage from "./MasterDataPage";
+import CalendarPage from "./CalendarPage";
 import { getCurrentUser, signOut, handleOAuthCallback, refreshSession } from "./auth";
 import * as XLSX from "xlsx";
 
@@ -833,6 +834,7 @@ export default function App() {
   const [showKomisi, setShowKomisi] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
   const [showMaster, setShowMaster] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [projects, setProjects] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -1014,6 +1016,7 @@ export default function App() {
             {isEditor && <button onClick={()=>setShowKomisi(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #f59e0b", background:"#451a03", color:"#f59e0b", cursor:"pointer", fontWeight:600, fontSize:13 }}>💰 Komisi</button>}
             {isAdmin && <button onClick={()=>setShowActivity(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #a78bfa", background:"#1e1040", color:"#a78bfa", cursor:"pointer", fontWeight:600, fontSize:13 }}>📅 Jadwal</button>}
             {isEditor && <button onClick={()=>setShowMaster(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #64748b", background:"#0a1525", color:"#94a3b8", cursor:"pointer", fontWeight:600, fontSize:13 }}>🗂 Data Master</button>}
+            <button onClick={()=>setShowCalendar(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #0284c7", background:"#0c1a2e", color:"#38bdf8", cursor:"pointer", fontWeight:600, fontSize:13 }}>🗓 Kalender</button>
             {canEdit && <button onClick={()=>setShowAdd(true)} style={{ ...BTN, padding:"10px 20px", fontSize:14 }}>+ Proyek Baru</button>}
             {isAdmin && (
               <button onClick={()=>setShowUserMgr(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #7c3aed", background:"#1e1040", color:"#a78bfa", cursor:"pointer", fontWeight:600, fontSize:13 }}>👥 Users</button>
@@ -1162,6 +1165,7 @@ export default function App() {
       {showKomisi && isEditor && <KomisiPage onClose={()=>setShowKomisi(false)} />}
       {showActivity && isAdmin && <ActivityPage onClose={()=>setShowActivity(false)} currentUser={currentUser} isAdmin={isAdmin} />}
       {showMaster && isEditor && <MasterDataPage onClose={()=>setShowMaster(false)} isAdmin={isAdmin} />}
+      {showCalendar && <CalendarPage onClose={()=>setShowCalendar(false)} projects={projects} />}
     </div>
   );
 }
