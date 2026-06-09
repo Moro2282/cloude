@@ -6,7 +6,13 @@ const INP = { width:"100%", background:"#0c1628", border:"1px solid #1e293b", bo
 const ROLE_COLOR = { admin:"#a78bfa", editor:"#38bdf8", trainer:"#f59e0b", viewer:"#64748b" };
 const ROLE_LABEL = { admin:"Admin", editor:"Editor", trainer:"Trainer", viewer:"Viewer" };
 
-export default function ProfileMenu({ currentUser, onLogout }) {
+export default function ProfileMenu({ currentUser, onLogout, theme }) {
+  const isDark = theme !== "light";
+  const pmBg = isDark ? "#0f172a" : "#ffffff";
+  const pmBorder = isDark ? "#1e293b" : "#e2e8f0";
+  const pmText = isDark ? "#e2e8f0" : "#0f172a";
+  const pmMuted = isDark ? "#475569" : "#64748b";
+  const pmCard = isDark ? "#0a1525" : "#f8fafc";
   const [open, setOpen] = useState(false);
   const [showChangePass, setShowChangePass] = useState(false);
   const [form, setForm] = useState({ current:"", newPass:"", confirm:"" });
@@ -62,17 +68,17 @@ export default function ProfileMenu({ currentUser, onLogout }) {
           {/* Backdrop */}
           <div style={{ position:"fixed", inset:0, zIndex:998 }} onClick={() => { setOpen(false); setShowChangePass(false); setMsg(null); }} />
 
-          <div style={{ position:"absolute", top:"calc(100% + 8px)", right:0, background:"#0f172a", border:"1px solid #1e293b", borderRadius:14, padding:0, minWidth:280, zIndex:999, overflow:"hidden", boxShadow:"0 20px 60px #00000088" }}>
+          <div style={{ position:"absolute", top:"calc(100% + 8px)", right:0, background:pmBg, border:`1px solid ${pmBorder}`, borderRadius:14, padding:0, minWidth:280, zIndex:999, overflow:"hidden", boxShadow:"0 20px 60px #00000088" }}>
 
             {/* Profile header */}
-            <div style={{ padding:"16px 18px", borderBottom:"1px solid #1e293b", background:"#0a1525" }}>
+            <div style={{ padding:"16px 18px", borderBottom:"1px solid #1e293b", background:pmCard }}>
               <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                 <div style={{ width:44, height:44, borderRadius:"50%", background:"linear-gradient(135deg,#1d4ed8,#7c3aed)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:800, color:"#fff" }}>
                   {initial}
                 </div>
                 <div>
-                  <div style={{ fontSize:14, fontWeight:700, color:"#f1f5f9" }}>{name}</div>
-                  <div style={{ fontSize:11, color:"#475569", marginTop:1 }}>{email}</div>
+                  <div style={{ fontSize:14, fontWeight:700, color:pmText }}>{name}</div>
+                  <div style={{ fontSize:11, color:pmMuted, marginTop:1 }}>{email}</div>
                   <span style={{ display:"inline-block", marginTop:4, padding:"2px 8px", borderRadius:999, fontSize:10, fontWeight:700, background:"#0c1628", color:ROLE_COLOR[role] }}>{ROLE_LABEL[role]}</span>
                 </div>
               </div>
