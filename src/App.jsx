@@ -257,6 +257,64 @@ function ProjectCard({ project, onSelect }) {
 
 // ─── DETAIL VIEW ──────────────────────────────────────────────────────────────
 
+// ─── FILTER GROUP DROPDOWN ───────────────────────────────────────────────────
+function FilterGroup({ label, filterKey, current, onToggle, options }) {
+  const [open, setOpen] = useState(false);
+  const isActive = current !== "all";
+  const activeOption = options.find(([v]) => v === current);
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button onClick={() => setOpen(!open)} style={{
+        padding: "8px 14px", borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: "pointer",
+        border: `1px solid ${isActive ? (activeOption?.[2] || "#38bdf8") : "#1e293b"}`,
+        background: isActive ? (activeOption?.[3] || "#0c2a3f") : "#0c1628",
+        color: isActive ? (activeOption?.[2] || "#38bdf8") : "#64748b",
+        display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap",
+        transition: "all 0.15s",
+      }}>
+        {isActive ? `${label}: ${activeOption?.[1] || current}` : label}
+        <span style={{ fontSize: 10, opacity: 0.7 }}>{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 98 }} onClick={() => setOpen(false)} />
+          <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, padding: 6, zIndex: 99, minWidth: 180, boxShadow: "0 8px 32px #00000066" }}>
+            {/* All option */}
+            <button onClick={() => { onToggle(filterKey, "all"); setOpen(false); }} style={{
+              width: "100%", padding: "8px 12px", borderRadius: 8, border: "none", textAlign: "left",
+              background: current === "all" ? "#1e293b" : "transparent",
+              color: current === "all" ? "#e2e8f0" : "#64748b",
+              fontSize: 12, cursor: "pointer", fontWeight: current === "all" ? 600 : 400,
+              display: "flex", alignItems: "center", gap: 8,
+            }}>
+              {current === "all" && <span style={{ color: "#38bdf8" }}>✓</span>}
+              Semua
+            </button>
+            {options.map(([val, lbl, color, bg]) => (
+              <button key={val} onClick={() => { onToggle(filterKey, val); setOpen(false); }} style={{
+                width: "100%", padding: "8px 12px", borderRadius: 8, border: "none", textAlign: "left",
+                background: current === val ? bg : "transparent",
+                color: current === val ? color : "#94a3b8",
+                fontSize: 12, cursor: "pointer", fontWeight: current === val ? 700 : 400,
+                display: "flex", alignItems: "center", gap: 8,
+                transition: "background 0.1s",
+              }}
+                onMouseEnter={e => { if (current !== val) e.currentTarget.style.background = "#0a1525"; }}
+                onMouseLeave={e => { if (current !== val) e.currentTarget.style.background = "transparent"; }}
+              >
+                {current === val && <span>✓</span>}
+                {lbl}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── OVERVIEW TAB WITH COMPANY PICKER ────────────────────────────────────────
 function OverviewTab({ p, updateField, SaveBtn }) {
   const SUPA_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
@@ -1106,90 +1164,73 @@ export default function App() {
           </div>
         </div>
 
-        {/* Search & Filter Bar */}
-        <div style={{ marginBottom: 20, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          {/* Search */}
-          <div style={{ position: "relative", flex: "1", minWidth: 200 }}>
-            <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "#475569" }}>🔍</span>
-            <input
-              type="text"
-              placeholder="Cari nama klien..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{ width: "100%", background: "#0c1628", border: "1px solid #1e293b", borderRadius: 10, padding: "9px 12px 9px 36px", color: "#e2e8f0", fontSize: 14, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+        {/* Search + Filter Bar */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            {/* Search */}
+            <div style={{ position: "relative", flex: "1", minWidth: 220 }}>
+              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "#475569" }}>🔍</span>
+              <input type="text" placeholder="Cari nama klien..." value={search} onChange={e => setSearch(e.target.value)}
+                style={{ width: "100%", background: "#0c1628", border: "1px solid #1e293b", borderRadius: 10, padding: "9px 12px 9px 36px", color: "#e2e8f0", fontSize: 14, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
+              {search && <span onClick={() => setSearch("")} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", cursor: "pointer", color: "#475569", fontSize: 16 }}>✕</span>}
+            </div>
+
+            {/* Filter groups */}
+            <FilterGroup
+              label="🛡 Support"
+              filterKey="support"
+              current={filters.support}
+              onToggle={toggleFilter}
+              options={[
+                ["active","Aktif","#10b981","#052e16"],
+                ["warning","⚠️ Hampir Habis","#f59e0b","#451a03"],
+                ["expired","Expired","#ef4444","#450a0a"],
+              ]}
             />
-            {search && (
-              <span onClick={() => setSearch("")} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", cursor: "pointer", color: "#475569", fontSize: 16 }}>✕</span>
-            )}
-          </div>
+            <FilterGroup
+              label="⚙️ Implementasi"
+              filterKey="impl"
+              current={filters.impl}
+              onToggle={toggleFilter}
+              options={[
+                ["running","Berjalan","#f59e0b","#451a03"],
+                ["done","Selesai","#10b981","#052e16"],
+                ["pending","Belum Mulai","#64748b","#0f172a"],
+              ]}
+            />
+            <FilterGroup
+              label="🖥 Server"
+              filterKey="server"
+              current={filters.server}
+              onToggle={toggleFilter}
+              options={[
+                ["active","Pakai Server","#38bdf8","#0c2a3f"],
+                ["none","No Server","#64748b","#0f172a"],
+                ["expiring","Mau Habis","#ef4444","#450a0a"],
+              ]}
+            />
 
-          {/* Filter chips */}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {/* Support filters */}
-            {[
-              ["support","active","Support Aktif","#10b981","#052e16"],
-              ["support","warning","Support ⚠️","#f59e0b","#451a03"],
-              ["support","expired","Support Expired","#ef4444","#450a0a"],
-            ].map(([key, val, label, color, bg]) => (
-              <button key={key+val} onClick={() => toggleFilter(key, val)} style={{
-                padding: "6px 14px", borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: "pointer",
-                border: `1px solid ${filters[key]===val ? color : "#1e293b"}`,
-                background: filters[key]===val ? bg : "transparent",
-                color: filters[key]===val ? color : "#475569",
-                transition: "all 0.15s",
-              }}>{label}</button>
-            ))}
-
-            <div style={{ width: 1, background: "#1e293b", margin: "0 2px" }} />
-
-            {/* Impl filters */}
-            {[
-              ["impl","running","Berjalan","#f59e0b","#451a03"],
-              ["impl","done","Selesai","#10b981","#052e16"],
-              ["impl","pending","Belum Mulai","#64748b","#0f172a"],
-            ].map(([key, val, label, color, bg]) => (
-              <button key={key+val} onClick={() => toggleFilter(key, val)} style={{
-                padding: "6px 14px", borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: "pointer",
-                border: `1px solid ${filters[key]===val ? color : "#1e293b"}`,
-                background: filters[key]===val ? bg : "transparent",
-                color: filters[key]===val ? color : "#475569",
-                transition: "all 0.15s",
-              }}>{label}</button>
-            ))}
-
-            <div style={{ width: 1, background: "#1e293b", margin: "0 2px" }} />
-
-            {/* Server filters */}
-            {[
-              ["server","active","🖥 Pakai Server","#38bdf8","#0c2a3f"],
-              ["server","none","🖥 No Server","#64748b","#0f172a"],
-              ["server","expiring","🖥 Server Mau Habis","#ef4444","#450a0a"],
-            ].map(([key, val, label, color, bg]) => (
-              <button key={key+val} onClick={() => toggleFilter(key, val)} style={{
-                padding: "6px 14px", borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: "pointer",
-                border: `1px solid ${filters[key]===val ? color : "#1e293b"}`,
-                background: filters[key]===val ? bg : "transparent",
-                color: filters[key]===val ? color : "#475569",
-                transition: "all 0.15s",
-              }}>{label}</button>
-            ))}
-
-            {/* Reset all */}
+            {/* Reset */}
             {(search || Object.values(filters).some(v => v !== "all")) && (
-              <button onClick={() => { setSearch(""); setFilters({ support:"all", impl:"all", server:"all" }); }} style={{
-                padding: "6px 14px", borderRadius: 999, fontSize: 12, cursor: "pointer",
-                border: "1px solid #334155", background: "transparent", color: "#64748b",
-              }}>✕ Reset</button>
+              <button onClick={() => { setSearch(""); setFilters({ support:"all", impl:"all", server:"all" }); }}
+                style={{ padding: "8px 14px", borderRadius: 8, fontSize: 12, cursor: "pointer", border: "1px solid #334155", background: "transparent", color: "#64748b", whiteSpace: "nowrap" }}>
+                ✕ Reset
+              </button>
             )}
           </div>
-        </div>
 
-        {/* Result count */}
-        {(search || Object.values(filters).some(v => v !== "all")) && (
-          <div style={{ fontSize: 12, color: "#475569", marginBottom: 16 }}>
-            Menampilkan <span style={{ color: "#38bdf8", fontWeight: 600 }}>{filteredProjects.length}</span> dari {projects.length} proyek
-          </div>
-        )}
+          {/* Active filters summary */}
+          {(search || Object.values(filters).some(v => v !== "all")) && (
+            <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={{ fontSize: 11, color: "#334155" }}>Filter aktif:</span>
+              {search && <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 11, background: "#0c2a3f", color: "#38bdf8", border: "1px solid #1d4ed833" }}>🔍 "{search}"</span>}
+              {filters.support !== "all" && <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 11, background: "#0a1525", color: "#f59e0b", border: "1px solid #f59e0b33" }}>🛡 {filters.support}</span>}
+              {filters.impl !== "all" && <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 11, background: "#0a1525", color: "#a78bfa", border: "1px solid #a78bfa33" }}>⚙️ {filters.impl}</span>}
+              {filters.server !== "all" && <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 11, background: "#0a1525", color: "#38bdf8", border: "1px solid #38bdf833" }}>🖥 {filters.server}</span>}
+              <span style={{ fontSize: 11, color: "#475569", marginLeft: 4 }}>→ <span style={{ color: "#38bdf8", fontWeight: 600 }}>{filteredProjects.length}</span> dari {projects.length} proyek</span>
+            </div>
+          )}
+        </div>
 
         {expiringSoon.length > 0 && (
           <div style={{ background:"#1c0800", border:"1px solid #f59e0b44", borderRadius:12, padding:"14px 18px", marginBottom:12, display:"flex", alignItems:"center", gap:12 }}>
