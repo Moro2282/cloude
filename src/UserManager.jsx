@@ -48,6 +48,8 @@ export default function UserManager({ currentUser, onClose }) {
   const [msg, setMsg] = useState(null);
   const [resetTarget, setResetTarget] = useState(null);
   const [linkTarget, setLinkTarget] = useState(null);
+  const [editNameTarget, setEditNameTarget] = useState(null);
+  const [editNameValue, setEditNameValue] = useState("");
 
   useEffect(() => { load(); getTeamMembers().then(setTeamMembers).catch(()=>{}); }, []);
 
@@ -90,6 +92,21 @@ export default function UserManager({ currentUser, onClose }) {
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, team_member_id: teamMemberId } : u));
       notify("Berhasil dikaitkan ke anggota tim!");
       setLinkTarget(null);
+    } catch(e) { notify(e.message, "error"); }
+  };
+
+  const handleRenameUser = async (userId, newName) => {
+    if (!newName.trim()) return;
+    const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPABASE_KEY;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type":"application/json", "apikey":SUPABASE_KEY, "Authorization":`Bearer ${token}`, "Prefer":"return=representation" },
+        body: JSON.stringify({ full_name: newName.trim() }),
+      });
+      if (!res.ok) throw new Error("Gagal update nama");
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, full_name: newName.trim() } : u));
+      notify(`Nama berhasil diubah ke "${newName.trim()}"!`);
     } catch(e) { notify(e.message, "error"); }
   };
 
@@ -238,6 +255,15 @@ export default function UserManager({ currentUser, onClose }) {
                     {user.id === currentUser.id && <span style={{ fontSize:10, color:"#475569", background:"#0f172a", padding:"2px 8px", borderRadius:999, border:"1px solid #1e293b" }}>Anda</span>}
                   </div>
                   <div style={{ fontSize:12, color:"#475569" }}>{user.email}</div>
+                {user.team_member_id && (() => {
+                  const tm = teamMembers.find(m => m.id === user.team_member_id);
+                  if (tm && user.full_name !== tm.name) return (
+                    <div onClick={()=>handleRenameUser(user.id, tm.name)} style={{ fontSize:11, color:"#f59e0b", marginTop:3, cursor:"pointer" }}>
+                      💡 Pakai nama tim: <span style={{ fontWeight:700 }}>{tm.name}</span>
+                    </div>
+                  );
+                  return null;
+                })()}
                 </div>
                 {/* Role selector */}
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
