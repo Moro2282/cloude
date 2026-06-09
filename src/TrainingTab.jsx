@@ -370,6 +370,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
   const [form, setForm] = useState({
     training_date: new Date().toISOString().split("T")[0],
     session_type: "training",
+    is_online: false,
     // Person 1
     person1_name: currentUser?.profile?.full_name || "",
     person1_is_partner: false,
@@ -530,15 +531,16 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
         project_id: project.id,
         training_date: form.training_date,
         session_type: form.session_type,
+        is_online: form.session_type === "training" ? form.is_online : false,
         // Person 1
         trainer_name: form.person1_name,
         is_partner: form.session_type === "training" ? form.person1_is_partner : false,
-        use_vehicle: form.person1_vehicle,
+        use_vehicle: form.is_online ? false : form.person1_vehicle,
         // Person 2
         has_second_person: form.has_second_person,
         person2_name: form.has_second_person ? form.person2_name : null,
         person2_is_partner: form.has_second_person && form.session_type === "training" ? form.person2_is_partner : false,
-        person2_vehicle: form.has_second_person ? form.person2_vehicle : false,
+        person2_vehicle: form.has_second_person && !form.is_online ? form.person2_vehicle : false,
         // Common
         technician_count: form.has_second_person ? 2 : 1,
         participants: form.participants,
@@ -560,7 +562,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
       // Auto-create jadwal aktivitas
       await createActivityFromSession({ ...newSession, id: saved.id }, project.name);
 
-      setForm({ training_date: new Date().toISOString().split("T")[0], session_type: "training", person1_name: currentUser?.profile?.full_name || "", person1_is_partner: false, person1_vehicle: false, has_second_person: false, person2_name: "", person2_is_partner: false, person2_vehicle: false, participants: "", topics: "", start_time: "08:00", end_time: "10:00", notes: "" });
+      setForm({ training_date: new Date().toISOString().split("T")[0], session_type: "training", is_online: false, person1_name: currentUser?.profile?.full_name || "", person1_is_partner: false, person1_vehicle: false, has_second_person: false, person2_name: "", person2_is_partner: false, person2_vehicle: false, participants: "", topics: "", start_time: "08:00", end_time: "10:00", notes: "" });
       setShowForm(false);
       notify(`Sesi training berhasil dicatat! ${hrs} jam dikurangi dari kuota. Jadwal aktivitas otomatis ditambahkan.`);
     } catch (e) { notify(e.message, "error"); }
@@ -677,6 +679,25 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                       )}
                     </div>
 
+                    {/* Online / Offline toggle - only for training */}
+                    {form.session_type === "training" && (
+                      <div style={{ display:"flex", gap:8 }}>
+                        {[
+                          ["offline", false, "🏢 Offline", "#f59e0b", "#451a03", "Tatap muka langsung"],
+                          ["online",  true,  "💻 Online",  "#10b981", "#052e16", "Via Zoom / Meet / dll"],
+                        ].map(([key, val, label, color, bg, desc]) => (
+                          <button key={key} type="button" onClick={() => setForm(f => ({ ...f, is_online: val, person1_vehicle: val ? false : f.person1_vehicle, person2_vehicle: val ? false : f.person2_vehicle }))}
+                            style={{ flex:1, padding:"9px 14px", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer",
+                              border:`1px solid ${form.is_online === val ? color : "#1e293b"}`,
+                              background:form.is_online === val ? bg : "transparent",
+                              color:form.is_online === val ? color : "#475569", transition:"all 0.15s", textAlign:"left" }}>
+                            <div>{label}</div>
+                            <div style={{ fontSize:10, fontWeight:400, marginTop:2, opacity:0.8 }}>{desc}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                     {/* Row 1: Tanggal */}
                     <div>
                       <label style={{ fontSize: 11, color: "#64748b" }}>{form.session_type === "onsite" ? "Tanggal Onsite *" : "Tanggal Training *"}</label>
@@ -770,12 +791,16 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                               </div>
                             </div>
                           )}
+                          {!form.is_online ? (
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#0a1525", borderRadius: 8, padding: "8px 12px" }}>
                             <span style={{ fontSize: 12, color: "#64748b" }}>🚗 Kendaraan Pribadi</span>
                             <div onClick={() => setForm(f => ({ ...f, person2_vehicle: !f.person2_vehicle }))} style={{ width: 40, height: 22, borderRadius: 999, cursor: "pointer", background: form.person2_vehicle ? "#10b981" : "#1e293b", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
                               <div style={{ position: "absolute", top: 2, left: form.person2_vehicle ? 20 : 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
                             </div>
                           </div>
+                        ) : (
+                          <div style={{ padding: "7px 12px", background: "#0a1525", borderRadius: 8, fontSize: 12, color: "#334155" }}>🚗 Kendaraan tidak diperlukan (Online)</div>
+                        )}
                         </div>
                       </div>
                     )}
@@ -871,6 +896,11 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                           ? <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700, background: "#052e16", color: "#10b981" }}>🔧 Onsite IT</span>
                           : <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700, background: "#0c2a3f", color: "#38bdf8" }}>📚 Training</span>
                         }
+                        {s.session_type === "training" && (
+                          s.is_online
+                            ? <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: "#052e16", color: "#10b981" }}>💻 Online</span>
+                            : <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: "#451a03", color: "#f59e0b" }}>🏢 Offline</span>
+                        )}
                         <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700, background: "#1a1a2e", color: "#f59e0b" }}>⏱ {s.hours_used} jam</span>
                         {s.start_time && s.end_time && (
                           <span style={{ fontSize: 11, color: "#475569" }}>🕐 {s.start_time} – {s.end_time}</span>
