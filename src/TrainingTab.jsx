@@ -335,6 +335,55 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
     setTimeout(() => setMsg(null), 3000);
   };
 
+  // Auto-create jadwal aktivitas from training session
+  const createActivityFromSession = async (session, projectName) => {
+    try {
+      const token = await getValidToken();
+      // Find team member id by name
+      const memberMatch = teamMembers.find(m => m.name === session.trainer_name);
+      const member2Match = session.has_second_person && session.person2_name
+        ? teamMembers.find(m => m.name === session.person2_name)
+        : null;
+
+      // Find company by project name
+      const compRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/companies?name=eq.${encodeURIComponent(projectName)}&limit=1`,
+        { headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${token}` } }
+      );
+      const compData = compRes.ok ? await compRes.json() : [];
+      const company = compData[0] || null;
+
+      const memberIds = [memberMatch?.id, member2Match?.id].filter(Boolean);
+      const memberNames = [session.trainer_name, session.has_second_person ? session.person2_name : null].filter(Boolean);
+
+      const activity = {
+        activity_date: session.training_date,
+        activity_type: session.session_type === "onsite" ? "onsite" : "training",
+        team_member_id: memberMatch?.id || null,
+        team_member_name: memberNames.join(", "),
+        team_member_ids: memberIds,
+        team_member_names: memberNames,
+        company_id: company?.id || null,
+        company_name: projectName,
+        company_status: company?.status || "klien",
+        outcome: `${session.session_type === "onsite" ? "Onsite IT" : "Training"} ${session.hours_used} jam — ${session.topic?.split("\n")[0] || ""}`,
+        notes: session.notes || "",
+        follow_up: "",
+        start_time: session.start_time || null,
+        end_time: session.end_time || null,
+        created_by: session.created_by || null,
+      };
+
+      await fetch(`${SUPABASE_URL}/rest/v1/team_activities`, {
+        method: "POST",
+        headers: { "Content-Type":"application/json", "apikey":SUPABASE_KEY, "Authorization":`Bearer ${token}`, "Prefer":"return=representation" },
+        body: JSON.stringify(activity),
+      });
+    } catch(e) {
+      console.warn("Auto-create activity failed:", e.message);
+    }
+  };
+
   // Check if current user can edit/delete a session
   const canEditSession = (session) => {
     if (canDelete) return true; // Admin can edit all
@@ -363,7 +412,12 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
       await onUpdateHours(project.trainingHours.total, newUsed);
       await onSave({ ...project, trainingHours: { ...project.trainingHours, used: newUsed } });
       setEditSession(null);
-      notify("Sesi berhasil diupdate!");
+      // Update activity if exists, or create new one
+      await createActivityFromSession(
+        sessions.find(s => s.id === sessionId) ? { ...sessions.find(s => s.id === sessionId), ...updatedData } : updatedData,
+        project.name
+      );
+      notify("Sesi berhasil diupdate! Jadwal aktivitas juga diperbarui.");
     } catch(e) { notify(e.message, "error"); }
     setSaving(false);
   };
@@ -415,9 +469,12 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
       await onUpdateHours(project.trainingHours.total, newUsed);
       await onSave({ ...project, trainingHours: { ...project.trainingHours, used: newUsed } });
 
+      // Auto-create jadwal aktivitas
+      await createActivityFromSession({ ...newSession, id: saved.id }, project.name);
+
       setForm({ training_date: new Date().toISOString().split("T")[0], session_type: "training", person1_name: currentUser?.profile?.full_name || "", person1_is_partner: false, person1_vehicle: false, has_second_person: false, person2_name: "", person2_is_partner: false, person2_vehicle: false, participants: "", topics: "", start_time: "08:00", end_time: "10:00", notes: "" });
       setShowForm(false);
-      notify(`Sesi training berhasil dicatat! ${hrs} jam dikurangi dari kuota.`);
+      notify(`Sesi training berhasil dicatat! ${hrs} jam dikurangi dari kuota. Jadwal aktivitas otomatis ditambahkan.`);
     } catch (e) { notify(e.message, "error"); }
     setSaving(false);
   };
