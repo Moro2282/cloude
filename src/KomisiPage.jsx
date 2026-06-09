@@ -555,6 +555,30 @@ export default function KomisiPage({ onClose }) {
                       </div>
                     ))}
                   </div>
+                  {/* Per-session tarif breakdown */}
+                  {t.sessions.length >= 1 && (
+                    <div style={{ marginTop:8, padding:"8px 12px", background:"#060d1a", borderRadius:8, fontSize:11 }}>
+                      <div style={{ marginBottom:6, color:"#475569", fontWeight:600, fontSize:10, textTransform:"uppercase", letterSpacing:0.8 }}>Rincian per Sesi:</div>
+                      {t.sessions.map((s,si) => {
+                        const isP2 = s.person2_name && name === s.person2_name;
+                        const tarifSesi = isP2 ? s.p2Tarif : s.p1Tarif;
+                        const komisiSesi = isP2 ? s.p2Komisi : s.p1Komisi;
+                        const kendaraanSesi = isP2 ? (s.p2Vehicle?100000:0) : (s.p1Vehicle||0);
+                        return (
+                          <div key={si} style={{ display:"flex", gap:8, alignItems:"center", padding:"4px 0", borderBottom:"1px solid #0f172a" }}>
+                            <span style={{ color:"#334155", minWidth:75, fontSize:10 }}>{s.training_date}</span>
+                            <span style={{ padding:"1px 5px", borderRadius:4, fontSize:10, background:s.session_type==="onsite"?"#052e16":"#0c2a3f", color:s.session_type==="onsite"?"#10b981":"#38bdf8" }}>{s.session_type==="onsite"?"Onsite":"Training"}</span>
+                            {s.has_second_person && <span style={{ fontSize:10, color:"#475569" }}>{isP2?"(Org 2)":"(Org 1)"}</span>}
+                            <span style={{ color:"#64748b", flex:1 }}>Rp {(tarifSesi||0).toLocaleString("id")}/jam × {s.hours_used}j</span>
+                            <span style={{ color:"#94a3b8", fontWeight:600 }}>
+                              Rp {(komisiSesi||0).toLocaleString("id")}
+                              {kendaraanSesi>0 && <span style={{ color:"#10b981" }}> +🚗Rp {kendaraanSesi.toLocaleString("id")}</span>}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* Session mini list */}
                   <div style={{ marginTop:12, borderTop:"1px solid #1e293b", paddingTop:12 }}>
