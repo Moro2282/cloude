@@ -7,6 +7,7 @@ import ProfileMenu from "./ProfileMenu";
 import ActivityPage from "./ActivityPage";
 import MasterDataPage from "./MasterDataPage";
 import CalendarPage from "./CalendarPage";
+import RoleManagerPage from "./RoleManagerPage";
 import { getCurrentUser, signOut, handleOAuthCallback, refreshSession } from "./auth";
 import * as XLSX from "xlsx";
 
@@ -974,6 +975,7 @@ export default function App() {
   const [showActivity, setShowActivity] = useState(false);
   const [showMaster, setShowMaster] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showRoles, setShowRoles] = useState(false);
   const [projects, setProjects] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -1158,8 +1160,8 @@ export default function App() {
             <button onClick={()=>setShowCalendar(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #0284c7", background:"#0c1a2e", color:"#38bdf8", cursor:"pointer", fontWeight:600, fontSize:13 }}>🗓 Kalender</button>
             {canEdit && <button onClick={()=>setShowAdd(true)} style={{ ...BTN, padding:"10px 20px", fontSize:14 }}>+ Proyek Baru</button>}
             {isAdmin && (
-              <button onClick={()=>setShowUserMgr(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #7c3aed", background:"#1e1040", color:"#a78bfa", cursor:"pointer", fontWeight:600, fontSize:13 }}>👥 Users</button>
-            )}
+              <button onClick={()=>setShowUserMgr(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #7c3aed", background:"#1e1040", color:"#a78bfa", cursor:"pointer", fontWeight:600, fontSize:13 }}>👥 Users</button>}
+            {isAdmin && <button onClick={()=>setShowRoles(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #ef4444", background:"#1c0a0a", color:"#ef4444", cursor:"pointer", fontWeight:600, fontSize:13 }}>🔐 Roles</button>}
             <ProfileMenu currentUser={currentUser} onLogout={handleLogout} />
           </div>
         </div>
@@ -1288,6 +1290,7 @@ export default function App() {
       {showActivity && isAdmin && <ActivityPage onClose={()=>setShowActivity(false)} currentUser={currentUser} isAdmin={isAdmin} />}
       {showMaster && isEditor && <MasterDataPage onClose={()=>setShowMaster(false)} isAdmin={isAdmin} />}
       {showCalendar && <CalendarPage onClose={()=>setShowCalendar(false)} projects={projects} />}
+      {showRoles && isAdmin && <RoleManagerPage onClose={()=>setShowRoles(false)} />}
     </div>
   );
 }
