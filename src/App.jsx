@@ -1138,158 +1138,241 @@ export default function App() {
     { label:"Server Mau Habis", val:projects.filter(p=>p.server&&p.server.active&&p.server.endDate&&getDaysRemaining(p.server.endDate)<=30).length, color:"#ef4444", icon:"⚠️" },
   ];
 
+  const [activePage, setActivePage] = useState("dashboard");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Sidebar nav structure
+  const NAV = [
+    {
+      group: "UTAMA",
+      items: [
+        { id:"dashboard", icon:"🏠", label:"Dashboard", roles:["admin","editor","trainer","viewer"] },
+      ]
+    },
+    {
+      group: "INPUT DATA",
+      items: [
+        { id:"proyek_baru", icon:"➕", label:"Proyek Baru", roles:["admin","editor"] },
+        { id:"jadwal", icon:"📅", label:"Jadwal Aktivitas", roles:["admin","editor","trainer"] },
+        { id:"layanan", icon:"🔧", label:"Layanan Teknis", roles:["admin","editor","trainer"] },
+        { id:"data_master", icon:"🗂", label:"Data Master", roles:["admin","editor"] },
+      ]
+    },
+    {
+      group: "LAPORAN",
+      items: [
+        { id:"laporan", icon:"📊", label:"Laporan Proyek", roles:["admin","editor"] },
+        { id:"komisi", icon:"💰", label:"Komisi Layanan", roles:["admin","editor"] },
+        { id:"kalender", icon:"🗓", label:"Kalender", roles:["admin","editor","trainer","viewer"] },
+      ]
+    },
+    {
+      group: "PENGATURAN",
+      items: [
+        { id:"users", icon:"👥", label:"Users", roles:["admin"] },
+        { id:"roles", icon:"🔐", label:"Role & Akses", roles:["admin"] },
+      ]
+    },
+  ];
+
+  const userRole = currentUser?.profile?.role || "viewer";
+  const visibleNav = NAV.map(g => ({
+    ...g,
+    items: g.items.filter(item => item.roles.includes(userRole))
+  })).filter(g => g.items.length > 0);
+
+  // Page router
+  const renderPage = () => {
+    if (activePage === "jadwal") return <ActivityPage onClose={()=>setActivePage("dashboard")} currentUser={currentUser} isAdmin={isAdmin} />;
+    if (activePage === "laporan") return <LaporanInline projects={projects} />;
+    if (activePage === "komisi") return <KomisiPage onClose={()=>setActivePage("dashboard")} />;
+    if (activePage === "kalender") return <CalendarPage onClose={()=>setActivePage("dashboard")} projects={projects} />;
+    if (activePage === "data_master") return <MasterDataPage onClose={()=>setActivePage("dashboard")} isAdmin={isAdmin} />;
+    if (activePage === "users") return <UserManagerInline currentUser={currentUser} />;
+    if (activePage === "roles") return <RoleManagerPage onClose={()=>setActivePage("dashboard")} />;
+    return null; // dashboard & proyek_baru handled inline
+  };
+
+  const fullPageRoutes = ["jadwal","laporan","komisi","kalender","data_master","users","roles"];
+  const isFullPage = fullPageRoutes.includes(activePage);
+
   return (
-    <div style={{ minHeight:"100vh", background:"#060d1a", padding:"24px 20px", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif", color:"#e2e8f0" }}>
-      <style>{`*,*::before,*::after{box-sizing:border-box}::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#0c1628}::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:3px}`}</style>
-      <div style={{ maxWidth:1000, margin:"0 auto" }}>
+    <div style={{ display:"flex", minHeight:"100vh", background:"#060d1a", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif", color:"#e2e8f0" }}>
+      <style>{`*,*::before,*::after{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#0c1628}::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:3px}`}</style>
 
-        <div style={{ marginBottom:32, display:"flex", justifyContent:"space-between", alignItems:"flex-end", flexWrap:"wrap", gap:16 }}>
-          <div>
-            <div style={{ fontSize:11, color:"#334155", letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>Activity KGB</div>
-            <h1 style={{ fontSize:34, fontWeight:900, color:"#f1f5f9", lineHeight:1, margin:0 }}>Aktivity KGB</h1>
-            <div style={{ fontSize:14, color:"#475569", marginTop:6 }}>
-              {projects.length} proyek aktif · 
-              <span style={{ color:"#10b981", marginLeft:4 }}>● Terhubung ke Supabase</span>
-            </div>
-          </div>
-          <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
-            <button onClick={()=>setShowLaporan(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #059669", background:"#052e16", color:"#10b981", cursor:"pointer", fontWeight:600, fontSize:13 }}>📊 Laporan</button>
-            {isEditor && <button onClick={()=>setShowKomisi(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #f59e0b", background:"#451a03", color:"#f59e0b", cursor:"pointer", fontWeight:600, fontSize:13 }}>💰 Komisi</button>}
-            {isAdmin && <button onClick={()=>setShowActivity(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #a78bfa", background:"#1e1040", color:"#a78bfa", cursor:"pointer", fontWeight:600, fontSize:13 }}>📅 Jadwal</button>}
-            {isEditor && <button onClick={()=>setShowMaster(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #64748b", background:"#0a1525", color:"#94a3b8", cursor:"pointer", fontWeight:600, fontSize:13 }}>🗂 Data Master</button>}
-            <button onClick={()=>setShowCalendar(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #0284c7", background:"#0c1a2e", color:"#38bdf8", cursor:"pointer", fontWeight:600, fontSize:13 }}>🗓 Kalender</button>
-            {canEdit && <button onClick={()=>setShowAdd(true)} style={{ ...BTN, padding:"10px 20px", fontSize:14 }}>+ Proyek Baru</button>}
-            {isAdmin && <button onClick={()=>setShowUserMgr(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #7c3aed", background:"#1e1040", color:"#a78bfa", cursor:"pointer", fontWeight:600, fontSize:13 }}>👥 Users</button>}
-            {isAdmin && <button onClick={()=>setShowRoles(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #ef4444", background:"#1c0a0a", color:"#ef4444", cursor:"pointer", fontWeight:600, fontSize:13 }}>🔐 Roles</button>}
-            <ProfileMenu currentUser={currentUser} onLogout={handleLogout} />
-          </div>
+      {/* ── SIDEBAR ── */}
+      <div style={{
+        width: sidebarCollapsed ? 64 : 220, flexShrink:0, background:"#080f1e",
+        borderRight:"1px solid #1a2744", display:"flex", flexDirection:"column",
+        transition:"width 0.2s", position:"sticky", top:0, height:"100vh", overflowY:"auto", overflowX:"hidden",
+      }}>
+        {/* Logo */}
+        <div style={{ padding: sidebarCollapsed ? "20px 0" : "20px 16px", borderBottom:"1px solid #1a2744", display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(135deg,#1d4ed8,#7c3aed)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0, margin: sidebarCollapsed?"0 auto":0 }}>⚡</div>
+          {!sidebarCollapsed && <div><div style={{ fontSize:14, fontWeight:800, color:"#f1f5f9", lineHeight:1.2 }}>Aktivity</div><div style={{ fontSize:10, color:"#475569", letterSpacing:1 }}>KGB</div></div>}
         </div>
 
-        {/* Search + Filter Bar */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            {/* Search */}
-            <div style={{ position: "relative", flex: "1", minWidth: 220 }}>
-              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "#475569" }}>🔍</span>
-              <input type="text" placeholder="Cari nama klien..." value={search} onChange={e => setSearch(e.target.value)}
-                style={{ width: "100%", background: "#0c1628", border: "1px solid #1e293b", borderRadius: 10, padding: "9px 12px 9px 36px", color: "#e2e8f0", fontSize: 14, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
-              {search && <span onClick={() => setSearch("")} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", cursor: "pointer", color: "#475569", fontSize: 16 }}>✕</span>}
-            </div>
-
-            {/* Filter groups */}
-            <FilterGroup
-              label="🛡 Support"
-              filterKey="support"
-              current={filters.support}
-              onToggle={toggleFilter}
-              options={[
-                ["active","Aktif","#10b981","#052e16"],
-                ["warning","⚠️ Hampir Habis","#f59e0b","#451a03"],
-                ["expired","Expired","#ef4444","#450a0a"],
-              ]}
-            />
-            <FilterGroup
-              label="⚙️ Implementasi"
-              filterKey="impl"
-              current={filters.impl}
-              onToggle={toggleFilter}
-              options={[
-                ["running","Berjalan","#f59e0b","#451a03"],
-                ["done","Selesai","#10b981","#052e16"],
-                ["pending","Belum Mulai","#64748b","#0f172a"],
-              ]}
-            />
-            <FilterGroup
-              label="🖥 Server"
-              filterKey="server"
-              current={filters.server}
-              onToggle={toggleFilter}
-              options={[
-                ["active","Pakai Server","#38bdf8","#0c2a3f"],
-                ["none","No Server","#64748b","#0f172a"],
-                ["expiring","Mau Habis","#ef4444","#450a0a"],
-              ]}
-            />
-
-            {/* Reset */}
-            {(search || Object.values(filters).some(v => v !== "all")) && (
-              <button onClick={() => { setSearch(""); setFilters({ support:"all", impl:"all", server:"all" }); }}
-                style={{ padding: "8px 14px", borderRadius: 8, fontSize: 12, cursor: "pointer", border: "1px solid #334155", background: "transparent", color: "#64748b", whiteSpace: "nowrap" }}>
-                ✕ Reset
-              </button>
-            )}
-          </div>
-
-          {/* Active filters summary */}
-          {(search || Object.values(filters).some(v => v !== "all")) && (
-            <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-              <span style={{ fontSize: 11, color: "#334155" }}>Filter aktif:</span>
-              {search && <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 11, background: "#0c2a3f", color: "#38bdf8", border: "1px solid #1d4ed833" }}>🔍 "{search}"</span>}
-              {filters.support !== "all" && <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 11, background: "#0a1525", color: "#f59e0b", border: "1px solid #f59e0b33" }}>🛡 {filters.support}</span>}
-              {filters.impl !== "all" && <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 11, background: "#0a1525", color: "#a78bfa", border: "1px solid #a78bfa33" }}>⚙️ {filters.impl}</span>}
-              {filters.server !== "all" && <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 11, background: "#0a1525", color: "#38bdf8", border: "1px solid #38bdf833" }}>🖥 {filters.server}</span>}
-              <span style={{ fontSize: 11, color: "#475569", marginLeft: 4 }}>→ <span style={{ color: "#38bdf8", fontWeight: 600 }}>{filteredProjects.length}</span> dari {projects.length} proyek</span>
-            </div>
-          )}
-        </div>
-
-        {expiringSoon.length > 0 && (
-          <div style={{ background:"#1c0800", border:"1px solid #f59e0b44", borderRadius:12, padding:"14px 18px", marginBottom:12, display:"flex", alignItems:"center", gap:12 }}>
-            <span style={{ fontSize:20 }}>⚠️</span>
-            <div>
-              <div style={{ fontWeight:700, color:"#f59e0b", fontSize:14 }}>Free Support Hampir Berakhir</div>
-              <div style={{ fontSize:12, color:"#78716c" }}>{expiringSoon.map(p=>`${p.name} (${getDaysRemaining(p.freeSupport.endDate)} hari lagi)`).join(" · ")}</div>
-            </div>
-          </div>
-        )}
-        {(() => {
-          const svrExpiring = projects.filter(p => p.server && p.server.active && p.server.endDate && getDaysRemaining(p.server.endDate) <= 30);
-          return svrExpiring.length > 0 && (
-            <div style={{ background:"#0a0a1c", border:"1px solid #38bdf844", borderRadius:12, padding:"14px 18px", marginBottom:12, display:"flex", alignItems:"center", gap:12 }}>
-              <span style={{ fontSize:20 }}>🖥️</span>
-              <div>
-                <div style={{ fontWeight:700, color:"#38bdf8", fontSize:14 }}>Langganan Server Hampir Berakhir</div>
-                <div style={{ fontSize:12, color:"#475569" }}>{svrExpiring.map(p=>`${p.name} (${getDaysRemaining(p.server.endDate) <= 0 ? "Expired" : getDaysRemaining(p.server.endDate)+" hari lagi"})`).join(" · ")}</div>
-              </div>
-            </div>
-          );
-        })()}
-        <div style={{ marginBottom: 12 }} />
-
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))", gap:12, marginBottom:28 }}>
-          {stats.map(s=>(
-            <div key={s.label} style={{ background:"#0c1628", border:"1px solid #1a2744", borderRadius:14, padding:"16px 18px" }}>
-              <div style={{ fontSize:22 }}>{s.icon}</div>
-              <div style={{ fontSize:30, fontWeight:900, color:s.color, lineHeight:1.1 }}>{s.val}</div>
-              <div style={{ fontSize:12, color:"#475569", marginTop:2 }}>{s.label}</div>
+        {/* Nav items */}
+        <div style={{ flex:1, padding:"12px 8px", overflowY:"auto" }}>
+          {visibleNav.map(group => (
+            <div key={group.group} style={{ marginBottom:16 }}>
+              {!sidebarCollapsed && <div style={{ fontSize:9, fontWeight:700, color:"#334155", letterSpacing:1.5, textTransform:"uppercase", padding:"0 8px", marginBottom:4 }}>{group.group}</div>}
+              {group.items.map(item => {
+                const isActive = activePage === item.id || (activePage === "proyek_baru" && item.id === "proyek_baru");
+                return (
+                  <button key={item.id} onClick={() => {
+                    if (item.id === "proyek_baru") { setShowAdd(true); }
+                    else setActivePage(item.id);
+                  }} title={sidebarCollapsed ? item.label : ""} style={{
+                    width:"100%", padding: sidebarCollapsed ? "10px 0" : "9px 10px",
+                    borderRadius:8, border:"none", cursor:"pointer",
+                    background: isActive ? "#0c2a3f" : "transparent",
+                    color: isActive ? "#38bdf8" : "#475569",
+                    display:"flex", alignItems:"center", gap:10,
+                    justifyContent: sidebarCollapsed ? "center" : "flex-start",
+                    fontSize:13, fontWeight: isActive ? 700 : 500,
+                    marginBottom:2, transition:"all 0.15s",
+                    borderLeft: isActive ? "3px solid #38bdf8" : "3px solid transparent",
+                  }}
+                    onMouseEnter={e=>{ if(!isActive){ e.currentTarget.style.background="#0a1525"; e.currentTarget.style.color="#94a3b8"; }}}
+                    onMouseLeave={e=>{ if(!isActive){ e.currentTarget.style.background="transparent"; e.currentTarget.style.color="#475569"; }}}>
+                    <span style={{ fontSize:16, flexShrink:0 }}>{item.icon}</span>
+                    {!sidebarCollapsed && <span style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{item.label}</span>}
+                  </button>
+                );
+              })}
             </div>
           ))}
         </div>
 
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(420px,1fr))", gap:16 }}>
-          {filteredProjects.map(proj=><ProjectCard key={proj.id} project={proj} onSelect={setSelected} />)}
+        {/* Collapse toggle */}
+        <div style={{ padding:"12px 8px", borderTop:"1px solid #1a2744" }}>
+          <button onClick={()=>setSidebarCollapsed(!sidebarCollapsed)} style={{
+            width:"100%", padding:"8px", borderRadius:8, border:"none",
+            background:"transparent", color:"#334155", cursor:"pointer", fontSize:16,
+            display:"flex", alignItems:"center", justifyContent: sidebarCollapsed?"center":"flex-end",
+          }}>
+            {sidebarCollapsed ? "›" : "‹"}
+          </button>
         </div>
-
-        {filteredProjects.length===0 && (
-          <div style={{ textAlign:"center", padding:"60px 20px", color:"#334155" }}>
-            <div style={{ fontSize:48 }}>📂</div>
-            <div style={{ fontSize:18, marginTop:12 }}>Belum ada proyek</div>
-            <div style={{ fontSize:13, marginTop:6 }}>Klik "+ Proyek Baru" untuk mulai</div>
-          </div>
-        )}
       </div>
 
-      {selectedProject && (
-        <DetailView project={selectedProject} onClose={()=>setSelected(null)} onSave={canEdit ? handleSaveProject : null} onDelete={canDelete ? ()=>handleDeleteProject(selectedProject.id) : null} canEdit={canEdit} canDelete={canDelete} canTraining={canTraining} currentUser={currentUser} />
-      )}
+      {/* ── MAIN CONTENT ── */}
+      <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0, overflowX:"hidden" }}>
+        {/* Top bar */}
+        <div style={{ padding:"14px 24px", borderBottom:"1px solid #1a2744", display:"flex", justifyContent:"space-between", alignItems:"center", background:"#080f1e", position:"sticky", top:0, zIndex:100 }}>
+          <div>
+            <div style={{ fontSize:11, color:"#334155", letterSpacing:2, textTransform:"uppercase" }}>Activity KGB</div>
+            <div style={{ fontSize:18, fontWeight:800, color:"#f1f5f9", lineHeight:1.2 }}>
+              {visibleNav.flatMap(g=>g.items).find(i=>i.id===activePage)?.label || "Dashboard"}
+            </div>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            {expiringSoon.length > 0 && (
+              <div style={{ padding:"6px 12px", background:"#1c0800", border:"1px solid #f59e0b44", borderRadius:8, fontSize:11, color:"#f59e0b", cursor:"pointer" }}
+                onClick={()=>setActivePage("kalender")}>
+                ⚠️ {expiringSoon.length} support hampir habis
+              </div>
+            )}
+            <ProfileMenu currentUser={currentUser} onLogout={handleLogout} />
+          </div>
+        </div>
+
+        {/* Page content */}
+        <div style={{ flex:1, padding: isFullPage ? 0 : "24px", overflowY:"auto" }}>
+          {isFullPage ? renderPage() : (
+            <>
+              {/* Dashboard content */}
+              {/* Server alert */}
+              {(() => {
+                const svrExpiring = projects.filter(p => p.server && p.server.active && p.server.endDate && getDaysRemaining(p.server.endDate) <= 30);
+                return svrExpiring.length > 0 && (
+                  <div style={{ background:"#0a0a1c", border:"1px solid #38bdf844", borderRadius:12, padding:"12px 16px", marginBottom:12, display:"flex", alignItems:"center", gap:12 }}>
+                    <span style={{ fontSize:18 }}>🖥️</span>
+                    <div>
+                      <div style={{ fontWeight:700, color:"#38bdf8", fontSize:13 }}>Langganan Server Hampir Berakhir</div>
+                      <div style={{ fontSize:12, color:"#475569" }}>{svrExpiring.map(p=>`${p.name} (${getDaysRemaining(p.server.endDate) <= 0 ? "Expired" : getDaysRemaining(p.server.endDate)+" hari lagi"})`).join(" · ")}</div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Support warning banner */}
+              {expiringSoon.length > 0 && (
+                <div style={{ background:"#1a0a00", border:"1px solid #f59e0b44", borderRadius:12, padding:"12px 16px", marginBottom:12, display:"flex", alignItems:"center", gap:12 }}>
+                  <span style={{ fontSize:18 }}>⚠️</span>
+                  <div>
+                    <div style={{ fontWeight:700, color:"#f59e0b", fontSize:13 }}>Free Support Hampir Berakhir</div>
+                    <div style={{ fontSize:12, color:"#92400e" }}>{expiringSoon.map(p=>`${p.client||p.name} (${getDaysRemaining(p.freeSupport.endDate)} hari lagi)`).join(" · ")}</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Stats */}
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:12, marginBottom:24 }}>
+                {[
+                  { label:"Total Proyek", val:projects.length, color:"#38bdf8", icon:"📁" },
+                  { label:"Perlu Perpanjang", val:projects.filter(p=>getDaysRemaining(p.freeSupport.endDate)<=90).length, color:"#f59e0b", icon:"🔔" },
+                  { label:"Server Aktif", val:projects.filter(p=>p.server&&p.server.active).length, color:"#10b981", icon:"🖥️" },
+                  { label:"Server Mau Habis", val:projects.filter(p=>p.server&&p.server.active&&p.server.endDate&&getDaysRemaining(p.server.endDate)<=30).length, color:"#ef4444", icon:"⚠️" },
+                ].map(s=>(
+                  <div key={s.label} style={{ background:"#0c1628", border:"1px solid #1a2744", borderRadius:14, padding:"16px 18px" }}>
+                    <div style={{ fontSize:20 }}>{s.icon}</div>
+                    <div style={{ fontSize:28, fontWeight:900, color:s.color, lineHeight:1.1 }}>{s.val}</div>
+                    <div style={{ fontSize:11, color:"#475569", marginTop:2 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Search + Filter */}
+              <div style={{ marginBottom:20 }}>
+                <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
+                  <div style={{ position:"relative", flex:"1", minWidth:220 }}>
+                    <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:14, color:"#475569" }}>🔍</span>
+                    <input type="text" placeholder="Cari nama klien..." value={search} onChange={e=>setSearch(e.target.value)}
+                      style={{ width:"100%", background:"#0c1628", border:"1px solid #1e293b", borderRadius:10, padding:"9px 12px 9px 36px", color:"#e2e8f0", fontSize:14, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }} />
+                    {search && <span onClick={()=>setSearch("")} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", cursor:"pointer", color:"#475569", fontSize:16 }}>✕</span>}
+                  </div>
+                  <FilterGroup label="🛡 Support" filterKey="support" current={filters.support} onToggle={toggleFilter} options={[["active","Aktif","#10b981","#052e16"],["warning","⚠️ Hampir Habis","#f59e0b","#451a03"],["expired","Expired","#ef4444","#450a0a"]]} />
+                  <FilterGroup label="⚙️ Implementasi" filterKey="impl" current={filters.impl} onToggle={toggleFilter} options={[["running","Berjalan","#f59e0b","#451a03"],["done","Selesai","#10b981","#052e16"],["pending","Belum Mulai","#64748b","#0f172a"]]} />
+                  <FilterGroup label="🖥 Server" filterKey="server" current={filters.server} onToggle={toggleFilter} options={[["active","Pakai Server","#38bdf8","#0c2a3f"],["none","No Server","#64748b","#0f172a"],["expiring","Mau Habis","#ef4444","#450a0a"]]} />
+                  {(search || Object.values(filters).some(v=>v!=="all")) && (
+                    <button onClick={()=>{setSearch("");setFilters({support:"all",impl:"all",server:"all"});}} style={{ padding:"8px 14px", borderRadius:8, fontSize:12, cursor:"pointer", border:"1px solid #334155", background:"transparent", color:"#64748b" }}>✕ Reset</button>
+                  )}
+                </div>
+                {(search || Object.values(filters).some(v=>v!=="all")) && (
+                  <div style={{ marginTop:8, fontSize:12, color:"#475569" }}>
+                    Menampilkan <span style={{ color:"#38bdf8", fontWeight:600 }}>{filteredProjects.length}</span> dari {projects.length} proyek
+                  </div>
+                )}
+              </div>
+
+              {/* Project grid */}
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(400px,1fr))", gap:16 }}>
+                {filteredProjects.map(proj=><ProjectCard key={proj.id} project={proj} onSelect={setSelected} />)}
+              </div>
+              {filteredProjects.length === 0 && (
+                <div style={{ textAlign:"center", padding:"60px 20px", color:"#334155" }}>
+                  <div style={{ fontSize:48 }}>📂</div>
+                  <div style={{ fontSize:18, marginTop:12 }}>{search||Object.values(filters).some(v=>v!=="all")?"Tidak ada proyek yang cocok":"Belum ada proyek"}</div>
+                  <div style={{ fontSize:13, marginTop:6 }}>{search||Object.values(filters).some(v=>v!=="all")?"Coba ubah filter":"Klik Proyek Baru di sidebar untuk mulai"}</div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Modals */}
+      {selected && (() => {
+        const selectedProject = projects.find(p=>p.id===selected);
+        return selectedProject && (
+          <DetailView project={selectedProject} onClose={()=>setSelected(null)} onSave={canEdit?handleSaveProject:null} onDelete={canDelete?()=>handleDeleteProject(selectedProject.id):null} canEdit={canEdit} canDelete={canDelete} canTraining={canTraining} currentUser={currentUser} />
+        );
+      })()}
       {showAdd && canEdit && <AddProjectModal onClose={()=>setShowAdd(false)} onAdd={handleAddProject} />}
       {showLaporan && <LaporanModal projects={projects} onClose={()=>setShowLaporan(false)} />}
       {showUserMgr && isAdmin && <UserManager currentUser={currentUser} onClose={()=>setShowUserMgr(false)} />}
-      {showKomisi && isEditor && <KomisiPage onClose={()=>setShowKomisi(false)} />}
-      {showActivity && isAdmin && <ActivityPage onClose={()=>setShowActivity(false)} currentUser={currentUser} isAdmin={isAdmin} />}
-      {showMaster && isEditor && <MasterDataPage onClose={()=>setShowMaster(false)} isAdmin={isAdmin} />}
-      {showCalendar && <CalendarPage onClose={()=>setShowCalendar(false)} projects={projects} />}
-      {showRoles && isAdmin && <RoleManagerPage onClose={()=>setShowRoles(false)} />}
     </div>
   );
 }
