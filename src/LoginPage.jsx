@@ -25,7 +25,7 @@ export default function LoginPage({ onLogin }) {
   };
 
   return (
-    <div style={{ minHeight:"100vh", background:"#060d1a", display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif" }}>
+    <div style={{ minHeight:"100vh", background: localStorage.getItem("theme")==="light" ? "#f1f5f9" : "#060d1a", display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif" }}>
       <style>{`*,*::before,*::after{box-sizing:border-box} input::placeholder{color:#334155}`}</style>
       <div style={{ width:"100%", maxWidth:420 }}>
 
