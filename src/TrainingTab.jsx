@@ -76,6 +76,94 @@ async function deleteSession(id) {
 const INP = { width: "100%", background: "#0c1628", border: "1px solid #1e293b", borderRadius: 8, padding: "8px 10px", color: "#e2e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box", marginTop: 4 };
 const MINI = { background: "#0a1525", border: "1px solid #1a2744", borderRadius: 10, padding: 14 };
 
+// ─── PERSON SEARCH INPUT ─────────────────────────────────────────────────────
+function PersonSearchInput({ members, value, onChange, placeholder, exclude = [], inputStyle }) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const filtered = members.filter(m =>
+    !exclude.includes(m.name) &&
+    (m.name.toLowerCase().includes(search.toLowerCase()) ||
+     (m.position||"").toLowerCase().includes(search.toLowerCase()))
+  );
+  const BASE_INP = inputStyle || { width:"100%", background:"#0c1628", border:"1px solid #1e293b", borderRadius:8, padding:"8px 10px", color:"#e2e8f0", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box", marginTop:4 };
+
+  const handleSelect = (name) => { onChange(name); setSearch(""); setOpen(false); };
+  const handleClear = () => { onChange(""); setSearch(""); };
+
+  return (
+    <div style={{ position:"relative" }}>
+      <div style={{ position:"relative" }}>
+        {value && !open ? (
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
+            <div style={{ flex:1, padding:"8px 10px", background:"#0c2a3f", border:"1px solid #1d4ed8", borderRadius:8, fontSize:13, color:"#38bdf8", fontWeight:600 }}>
+              ✓ {value}
+            </div>
+            <button type="button" onClick={handleClear} style={{ padding:"6px 10px", borderRadius:8, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer", fontSize:12 }}>✕</button>
+            <button type="button" onClick={()=>{ setOpen(true); setSearch(""); }} style={{ padding:"6px 10px", borderRadius:8, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer", fontSize:12 }}>✏️</button>
+          </div>
+        ) : (
+          <div style={{ position:"relative" }}>
+            <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"#475569", fontSize:12, pointerEvents:"none" }}>🔍</span>
+            <input
+              style={{ ...BASE_INP, paddingLeft:30, marginTop:4 }}
+              value={search}
+              onChange={e=>{ setSearch(e.target.value); setOpen(true); }}
+              onFocus={()=>setOpen(true)}
+              placeholder={placeholder}
+              autoComplete="off"
+            />
+          </div>
+        )}
+      </div>
+
+      {open && (
+        <>
+          <div style={{ position:"fixed", inset:0, zIndex:998 }} onClick={()=>{ setOpen(false); if (!value) setSearch(""); }} />
+          <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, right:0, background:"#0f172a", border:"1px solid #1e293b", borderRadius:10, zIndex:999, maxHeight:200, overflowY:"auto", boxShadow:"0 8px 32px #00000066" }}>
+            {filtered.length > 0 ? (
+              <>
+                {filtered.map(m => (
+                  <div key={m.id} onMouseDown={()=>handleSelect(m.name)}
+                    style={{ padding:"9px 14px", cursor:"pointer", borderBottom:"1px solid #0f172a", display:"flex", alignItems:"center", gap:10 }}
+                    onMouseEnter={e=>e.currentTarget.style.background="#0a1525"}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    <div style={{ width:28, height:28, borderRadius:"50%", background:"linear-gradient(135deg,#1d4ed8,#7c3aed)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:700, fontSize:12, flexShrink:0 }}>
+                      {m.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:600, color:"#e2e8f0" }}>{m.name}</div>
+                      {m.position && <div style={{ fontSize:11, color:"#475569" }}>{m.position}</div>}
+                    </div>
+                  </div>
+                ))}
+                {/* Manual entry if search doesn't match exactly */}
+                {search && !filtered.find(m=>m.name.toLowerCase()===search.toLowerCase()) && (
+                  <div onMouseDown={()=>handleSelect(search)} style={{ padding:"9px 14px", cursor:"pointer", borderTop:"1px solid #1e293b", fontSize:12, color:"#64748b" }}
+                    onMouseEnter={e=>e.currentTarget.style.background="#0a1525"}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    ✏️ Gunakan "<span style={{ color:"#e2e8f0", fontWeight:600 }}>{search}</span>" (manual)
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ padding:"12px 14px" }}>
+                <div style={{ fontSize:12, color:"#475569", marginBottom:6 }}>Tidak ditemukan di Master Tim</div>
+                {search && (
+                  <div onMouseDown={()=>handleSelect(search)} style={{ fontSize:12, padding:"6px 10px", borderRadius:8, border:"1px solid #334155", color:"#94a3b8", cursor:"pointer", display:"inline-block" }}
+                    onMouseEnter={e=>e.currentTarget.style.background="#0a1525"}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    ✏️ Pakai "{search}" sebagai nama manual
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── EDIT SESSION MODAL ──────────────────────────────────────────────────────
 function EditSessionModal({ session, project, teamMembers, currentUser, sessions, onClose, onSave, saving }) {
   const calcHours = (start, end) => {
@@ -181,14 +269,14 @@ function EditSessionModal({ session, project, teamMembers, currentUser, sessions
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
               <div style={{ gridColumn:"1/-1" }}>
                 <label style={{ fontSize:11, color:"#64748b" }}>Nama</label>
-                {teamMembers.length > 0 && (
-                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:4, marginBottom:4 }}>
-                    {teamMembers.slice(0,8).map(m=>(
-                      <button key={m.id} type="button" onClick={()=>setForm(f=>({...f,person1_name:m.name}))} style={{ padding:"3px 10px", borderRadius:999, fontSize:11, cursor:"pointer", border:`1px solid ${form.person1_name===m.name?"#38bdf8":"#1e293b"}`, background:form.person1_name===m.name?"#0c2a3f":"transparent", color:form.person1_name===m.name?"#38bdf8":"#475569" }}>{m.name}</button>
-                    ))}
-                  </div>
-                )}
-                <input style={INP_S} value={form.person1_name} onChange={e=>setForm(f=>({...f,person1_name:e.target.value}))} placeholder="Nama" />
+                <PersonSearchInput
+                  members={teamMembers}
+                  value={form.person1_name}
+                  onChange={v=>setForm(f=>({...f,person1_name:v}))}
+                  placeholder="Cari/ketik nama..."
+                  exclude={[form.person2_name]}
+                  inputStyle={INP_S}
+                />
               </div>
               {form.session_type==="training" && (
                 <div style={{ gridColumn:"1/-1" }}>
@@ -219,14 +307,14 @@ function EditSessionModal({ session, project, teamMembers, currentUser, sessions
             <div style={{ ...MINI_S, borderColor:"#1d4ed8" }}>
               <div style={{ fontSize:12, fontWeight:600, color:"#38bdf8", marginBottom:8 }}>{form.session_type==="onsite"?"👥 Teknisi 2":"👥 Orang 2"}</div>
               <div>
-                {teamMembers.length > 0 && (
-                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:4 }}>
-                    {teamMembers.filter(m=>m.name!==form.person1_name).slice(0,8).map(m=>(
-                      <button key={m.id} type="button" onClick={()=>setForm(f=>({...f,person2_name:m.name}))} style={{ padding:"3px 10px", borderRadius:999, fontSize:11, cursor:"pointer", border:`1px solid ${form.person2_name===m.name?"#38bdf8":"#1e293b"}`, background:form.person2_name===m.name?"#0c2a3f":"transparent", color:form.person2_name===m.name?"#38bdf8":"#475569" }}>{m.name}</button>
-                    ))}
-                  </div>
-                )}
-                <input style={INP_S} value={form.person2_name} onChange={e=>setForm(f=>({...f,person2_name:e.target.value}))} placeholder="Nama orang kedua" />
+                <PersonSearchInput
+                  members={teamMembers}
+                  value={form.person2_name}
+                  onChange={v=>setForm(f=>({...f,person2_name:v}))}
+                  placeholder="Cari/ketik nama orang kedua..."
+                  exclude={[form.person1_name]}
+                  inputStyle={INP_S}
+                />
                 {form.session_type==="training" && (
                   <div style={{ display:"flex", gap:6, marginTop:8 }}>
                     {[["internal",false,"🏢 Internal","#38bdf8","#0c2a3f"],["partner",true,"🤝 Partner","#a78bfa","#1e1040"]].map(([k,v,l,c,bg])=>(
@@ -602,20 +690,13 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                         <div style={{ gridColumn: "1 / -1" }}>
                           <label style={{ fontSize: 11, color: "#64748b" }}>Nama * <span style={{ color:"#334155", fontWeight:400 }}>(pilih dari tim atau ketik manual)</span></label>
-                          {teamMembers.length > 0 && (
-                            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:6, marginBottom:6 }}>
-                              {teamMembers.map(m => (
-                                <button key={m.id} type="button" onClick={() => setForm(f => ({ ...f, person1_name: m.name }))}
-                                  style={{ padding:"4px 12px", borderRadius:999, fontSize:11, fontWeight:600, cursor:"pointer",
-                                    border:`1px solid ${form.person1_name===m.name?"#38bdf8":"#1e293b"}`,
-                                    background:form.person1_name===m.name?"#0c2a3f":"transparent",
-                                    color:form.person1_name===m.name?"#38bdf8":"#475569" }}>
-                                  {m.name}{m.position ? ` (${m.position})` : ""}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                          <input type="text" style={INP} placeholder={form.session_type === "onsite" ? "Nama teknisi" : "Nama trainer/orang pertama"} value={form.person1_name} onChange={e => setForm(f => ({ ...f, person1_name: e.target.value }))} />
+                          <PersonSearchInput
+                            members={teamMembers}
+                            value={form.person1_name}
+                            onChange={v => setForm(f => ({ ...f, person1_name: v }))}
+                            placeholder={form.session_type === "onsite" ? "Cari/ketik nama teknisi..." : "Cari/ketik nama trainer..."}
+                            exclude={[form.person2_name]}
+                          />
                         </div>
                         {form.session_type === "training" && (
                           <div style={{ gridColumn: "1 / -1" }}>
@@ -664,20 +745,13 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                         <div style={{ display: "grid", gap: 10 }}>
                           <div>
                             <label style={{ fontSize: 11, color: "#64748b" }}>Nama * <span style={{ color:"#334155", fontWeight:400 }}>(pilih atau ketik manual)</span></label>
-                            {teamMembers.length > 0 && (
-                              <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:6, marginBottom:6 }}>
-                                {teamMembers.filter(m => m.name !== form.person1_name).map(m => (
-                                  <button key={m.id} type="button" onClick={() => setForm(f => ({ ...f, person2_name: m.name }))}
-                                    style={{ padding:"4px 12px", borderRadius:999, fontSize:11, fontWeight:600, cursor:"pointer",
-                                      border:`1px solid ${form.person2_name===m.name?"#38bdf8":"#1e293b"}`,
-                                      background:form.person2_name===m.name?"#0c2a3f":"transparent",
-                                      color:form.person2_name===m.name?"#38bdf8":"#475569" }}>
-                                    {m.name}{m.position ? ` (${m.position})` : ""}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                            <input type="text" style={INP} placeholder={form.session_type === "onsite" ? "Nama teknisi kedua" : "Nama trainer/orang kedua"} value={form.person2_name} onChange={e => setForm(f => ({ ...f, person2_name: e.target.value }))} />
+                            <PersonSearchInput
+                              members={teamMembers}
+                              value={form.person2_name}
+                              onChange={v => setForm(f => ({ ...f, person2_name: v }))}
+                              placeholder={form.session_type === "onsite" ? "Cari/ketik nama teknisi kedua..." : "Cari/ketik nama orang kedua..."}
+                              exclude={[form.person1_name]}
+                            />
                           </div>
                           {form.session_type === "training" && (
                             <div>
