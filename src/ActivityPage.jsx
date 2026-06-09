@@ -230,7 +230,183 @@ function CompanyMasterModal({ onClose }) {
   );
 }
 
-// ─── FORM AKTIVITAS ───────────────────────────────────────────────────────────
+const SUPABASE_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
+function getToken() {
+  try { return JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPABASE_KEY; }
+  catch { return SUPABASE_KEY; }
+}
+
+// ─── SEARCH PICKERS ───────────────────────────────────────────────────────────
+
+function MemberPicker({ members, selectedIds, selectedNames, onToggle, onClear, onAddNew }) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const filtered = members.filter(m => m.name.toLowerCase().includes(search.toLowerCase()) || (m.position||"").toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div style={MINI}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+        <div style={{ fontSize:12, fontWeight:600, color:"#64748b" }}>👥 Anggota Tim * <span style={{ color:"#334155", fontWeight:400 }}>(bisa lebih dari 1)</span></div>
+        {selectedNames.length > 0 && <button onClick={onClear} style={{ fontSize:10, padding:"2px 8px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>✕ Hapus Semua</button>}
+      </div>
+
+      {/* Selected chips */}
+      {selectedNames.length > 0 && (
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
+          {selectedNames.map((name, i) => (
+            <span key={name} style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:999, fontSize:11, fontWeight:600, background:"#0c2a3f", color:"#38bdf8", border:"1px solid #1d4ed833" }}>
+              ✓ {name}
+              <span onClick={()=>onToggle({id:selectedIds[i],name})} style={{ cursor:"pointer", marginLeft:2, opacity:0.7 }}>✕</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Search input */}
+      <div style={{ position:"relative" }}>
+        <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"#475569", fontSize:12 }}>🔍</span>
+        <input style={{ ...INP, marginTop:0, paddingLeft:30 }} placeholder="Cari nama tim..." value={search}
+          onChange={e=>{ setSearch(e.target.value); setOpen(true); }}
+          onFocus={()=>setOpen(true)} />
+      </div>
+
+      {/* Dropdown results */}
+      {open && (
+        <div style={{ background:"#060d1a", border:"1px solid #1e293b", borderRadius:10, marginTop:6, maxHeight:200, overflowY:"auto" }}>
+          {filtered.length > 0 ? filtered.map(m => {
+            const selected = selectedIds.includes(m.id);
+            return (
+              <div key={m.id} onClick={()=>{ onToggle(m); setSearch(""); }} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 14px", cursor:"pointer", background:selected?"#0c2a3f":"transparent", borderBottom:"1px solid #0f172a" }}
+                onMouseEnter={e=>{ if(!selected) e.currentTarget.style.background="#0a1525"; }}
+                onMouseLeave={e=>{ if(!selected) e.currentTarget.style.background="transparent"; }}>
+                <span style={{ width:16, height:16, borderRadius:4, border:`2px solid ${selected?"#38bdf8":"#334155"}`, background:selected?"#1d4ed8":"transparent", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#fff", flexShrink:0 }}>{selected?"✓":""}</span>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:600, color:"#e2e8f0" }}>{m.name}</div>
+                  {m.position && <div style={{ fontSize:11, color:"#475569" }}>{m.position}</div>}
+                </div>
+              </div>
+            );
+          }) : (
+            <div style={{ padding:"12px 14px" }}>
+              <div style={{ fontSize:12, color:"#475569", marginBottom:8 }}>"{search}" tidak ditemukan</div>
+              <button onClick={()=>{ setOpen(false); onAddNew(); }} style={{ fontSize:12, padding:"6px 14px", borderRadius:8, border:"1px solid #1d4ed8", background:"transparent", color:"#38bdf8", cursor:"pointer", fontWeight:600 }}>+ Tambah "{search}" ke Master Tim</button>
+            </div>
+          )}
+          {filtered.length > 0 && (
+            <div style={{ padding:"8px 14px", borderTop:"1px solid #0f172a" }}>
+              <button onClick={()=>{ setOpen(false); onAddNew(); }} style={{ fontSize:11, padding:"5px 12px", borderRadius:8, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>+ Tambah anggota tim baru</button>
+            </div>
+          )}
+        </div>
+      )}
+      {open && <div style={{ position:"fixed", inset:0, zIndex:-1 }} onClick={()=>setOpen(false)} />}
+    </div>
+  );
+}
+
+function CompanyPicker({ companies, selectedId, selectedName, selectedStatus, onSelect, onClear, onAddNew }) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const filtered = companies.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.pic_name||"").toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div style={MINI}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+        <div style={{ fontSize:12, fontWeight:600, color:"#64748b" }}>🏢 Perusahaan *</div>
+        {selectedName && <button onClick={onClear} style={{ fontSize:10, padding:"2px 8px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>✕ Hapus</button>}
+      </div>
+
+      {/* Selected */}
+      {selectedName && (
+        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10, padding:"8px 12px", background:"#060d1a", borderRadius:8, border:"1px solid #10b98133" }}>
+          <span style={{ fontSize:12, color:"#10b981", fontWeight:600 }}>✓ {selectedName}</span>
+          <Badge type={selectedStatus||"prospek"} config={STATUS_CONFIG} />
+        </div>
+      )}
+
+      {/* Search input */}
+      <div style={{ position:"relative" }}>
+        <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"#475569", fontSize:12 }}>🔍</span>
+        <input style={{ ...INP, marginTop:0, paddingLeft:30 }} placeholder="Cari nama perusahaan atau PIC..." value={search}
+          onChange={e=>{ setSearch(e.target.value); setOpen(true); }}
+          onFocus={()=>setOpen(true)} />
+      </div>
+
+      {/* Dropdown */}
+      {open && (
+        <div style={{ background:"#060d1a", border:"1px solid #1e293b", borderRadius:10, marginTop:6, maxHeight:220, overflowY:"auto" }}>
+          {filtered.length > 0 ? filtered.map(c => {
+            const isSelected = selectedId === c.id;
+            const sc = c.status === "klien" ? { color:"#10b981", bg:"#052e16" } : { color:"#f59e0b", bg:"#451a03" };
+            return (
+              <div key={c.id} onClick={()=>{ onSelect(c); setSearch(""); setOpen(false); }} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 14px", cursor:"pointer", background:isSelected?"#052e16":"transparent", borderBottom:"1px solid #0f172a" }}
+                onMouseEnter={e=>{ if(!isSelected) e.currentTarget.style.background="#0a1525"; }}
+                onMouseLeave={e=>{ if(!isSelected) e.currentTarget.style.background=isSelected?"#052e16":"transparent"; }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontSize:13, fontWeight:600, color:"#e2e8f0" }}>{c.name}</span>
+                    <span style={{ padding:"1px 8px", borderRadius:999, fontSize:10, fontWeight:700, background:sc.bg, color:sc.color }}>{c.status==="klien"?"Klien":"Prospek"}</span>
+                  </div>
+                  {c.pic_name && <div style={{ fontSize:11, color:"#475569" }}>👤 {c.pic_name}</div>}
+                </div>
+                {isSelected && <span style={{ color:"#10b981", fontSize:14 }}>✓</span>}
+              </div>
+            );
+          }) : (
+            <div style={{ padding:"12px 14px" }}>
+              <div style={{ fontSize:12, color:"#475569", marginBottom:8 }}>"{search}" tidak ditemukan</div>
+              <button onClick={()=>{ setOpen(false); onAddNew(); }} style={{ fontSize:12, padding:"6px 14px", borderRadius:8, border:"1px solid #10b981", background:"transparent", color:"#10b981", cursor:"pointer", fontWeight:600 }}>+ Tambah "{search}" ke Data Perusahaan</button>
+            </div>
+          )}
+          {filtered.length > 0 && (
+            <div style={{ padding:"8px 14px", borderTop:"1px solid #0f172a" }}>
+              <button onClick={()=>{ setOpen(false); onAddNew(); }} style={{ fontSize:11, padding:"5px 12px", borderRadius:8, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>+ Tambah perusahaan baru</button>
+            </div>
+          )}
+        </div>
+      )}
+      {open && <div style={{ position:"fixed", inset:0, zIndex:-1 }} onClick={()=>setOpen(false)} />}
+    </div>
+  );
+}
+
+function QuickAddModal({ title, fields, onClose, onSave }) {
+  const [form, setForm] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  const handleSave = async () => {
+    const required = fields.find(([k,l]) => l.includes("*") && !form[k]?.trim());
+    if (required) { setErr(`${required[1].replace(" *","")} wajib diisi`); return; }
+    setSaving(true);
+    try { await onSave(form); }
+    catch(e) { setErr(e.message); setSaving(false); }
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#00000088", zIndex:4000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={onClose}>
+      <div style={{ background:"#0f172a", border:"1px solid #1e293b", borderRadius:16, padding:24, maxWidth:380, width:"100%", fontFamily:"inherit" }} onClick={e=>e.stopPropagation()}>
+        <div style={{ fontSize:15, fontWeight:700, color:"#f1f5f9", marginBottom:16 }}>{title}</div>
+        {err && <div style={{ fontSize:12, color:"#ef4444", marginBottom:10 }}>⚠️ {err}</div>}
+        <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
+          {fields.map(([k,label]) => (
+            <div key={k}>
+              <label style={{ fontSize:11, color:"#64748b" }}>{label}</label>
+              <input style={INP} value={form[k]||""} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder={label.replace(" *","")} />
+            </div>
+          ))}
+        </div>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={handleSave} disabled={saving} style={{ flex:1, padding:"9px", borderRadius:8, border:"none", background:saving?"#1e293b":"#059669", color:saving?"#475569":"#fff", cursor:saving?"not-allowed":"pointer", fontWeight:600, fontSize:13 }}>{saving?"Menyimpan...":"Simpan & Pilih"}</button>
+          <button onClick={onClose} style={{ padding:"9px 16px", borderRadius:8, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer", fontSize:13 }}>Batal</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── FORM AKTIVITAS ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 function ActivityFormModal({ activity, members, companies, currentUser, onClose, onSave }) {
   const isEdit = !!activity;
   const [form, setForm] = useState(activity ? {
@@ -261,6 +437,8 @@ function ActivityFormModal({ activity, members, companies, currentUser, onClose,
     follow_up: "",
   });
   const [saving, setSaving] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [showAddCompany, setShowAddCompany] = useState(false);
   const [msg, setMsg] = useState(null);
 
   const toggleMember = (m) => {
@@ -336,57 +514,26 @@ function ActivityFormModal({ activity, members, companies, currentUser, onClose,
           </div>
         </div>
 
-        {/* Anggota Tim - multi select */}
-        <div style={MINI}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-            <div style={{ fontSize:12, fontWeight:600, color:"#64748b" }}>👥 Anggota Tim * <span style={{ color:"#334155", fontWeight:400 }}>(bisa pilih lebih dari 1)</span></div>
-            {form.team_member_names.length > 0 && (
-              <button onClick={()=>setForm(f=>({...f,team_member_ids:[],team_member_names:[]}))} style={{ fontSize:10, padding:"2px 8px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>✕ Hapus Semua</button>
-            )}
-          </div>
-          <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:10 }}>
-            {members.map(m => {
-              const selected = (form.team_member_ids||[]).includes(m.id);
-              return (
-                <button key={m.id} onClick={()=>toggleMember(m)} style={{ padding:"6px 14px", borderRadius:999, fontSize:12, fontWeight:600, cursor:"pointer",
-                  border:`1px solid ${selected?"#38bdf8":"#1e293b"}`,
-                  background:selected?"#0c2a3f":"transparent",
-                  color:selected?"#38bdf8":"#475569",
-                  display:"flex", alignItems:"center", gap:6 }}>
-                  {selected && <span style={{ fontSize:10 }}>✓</span>}
-                  {m.name}{m.position ? ` (${m.position})` : ""}
-                </button>
-              );
-            })}
-          </div>
-          {form.team_member_names.length > 0 ? (
-            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-              {form.team_member_names.map(name => (
-                <span key={name} style={{ padding:"3px 10px", borderRadius:999, fontSize:11, fontWeight:600, background:"#0c2a3f", color:"#38bdf8", border:"1px solid #1d4ed833" }}>✓ {name}</span>
-              ))}
-            </div>
-          ) : (
-            <div style={{ fontSize:11, color:"#334155" }}>Belum ada anggota tim dipilih</div>
-          )}
-        </div>
+        {/* Anggota Tim - search picker */}
+        <MemberPicker
+          members={members}
+          selectedIds={form.team_member_ids||[]}
+          selectedNames={form.team_member_names||[]}
+          onToggle={toggleMember}
+          onClear={()=>setForm(f=>({...f,team_member_ids:[],team_member_names:[]}))}
+          onAddNew={()=>setShowAddMember(true)}
+        />
 
-        {/* Perusahaan */}
-        <div style={MINI}>
-          <div style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:8 }}>🏢 Perusahaan *</div>
-          <div style={{ display:"flex", gap:8, flexWrap:"wrap", maxHeight:120, overflowY:"auto", marginBottom: form.company_name ? 8 : 0 }}>
-            {companies.map(c => (
-              <button key={c.id} onClick={()=>selectCompany(c)} style={{ padding:"5px 12px", borderRadius:999, fontSize:12, fontWeight:600, cursor:"pointer", border:`1px solid ${form.company_id===c.id?(c.status==="klien"?"#10b981":"#f59e0b"):"#1e293b"}`, background:form.company_id===c.id?(c.status==="klien"?"#052e16":"#451a03"):"transparent", color:form.company_id===c.id?(c.status==="klien"?"#10b981":"#f59e0b"):"#475569" }}>
-                {c.name}
-              </button>
-            ))}
-          </div>
-          {form.company_name && (
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
-              <span style={{ fontSize:11, color:"#10b981" }}>✓ {form.company_name}</span>
-              <Badge type={form.company_status} config={STATUS_CONFIG} />
-            </div>
-          )}
-        </div>
+        {/* Perusahaan - search picker */}
+        <CompanyPicker
+          companies={companies}
+          selectedId={form.company_id}
+          selectedName={form.company_name}
+          selectedStatus={form.company_status}
+          onSelect={selectCompany}
+          onClear={()=>setForm(f=>({...f,company_id:"",company_name:"",company_status:"prospek"}))}
+          onAddNew={()=>setShowAddCompany(true)}
+        />
 
         {/* Outcome */}
         <div>
@@ -411,6 +558,34 @@ function ActivityFormModal({ activity, members, companies, currentUser, onClose,
           <button onClick={onClose} style={{ ...BTN, background:"transparent", border:"1px solid #334155", color:"#64748b" }}>Batal</button>
         </div>
       </div>
+
+      {/* Quick Add Member */}
+      {showAddMember && (
+        <QuickAddModal title="+ Tambah Anggota Tim" fields={[["name","Nama *","text"],["position","Posisi","text"]]} onClose={()=>setShowAddMember(false)}
+          onSave={async (data) => {
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/team_members`, { method:"POST", headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":`Bearer ${getToken()}`,"Prefer":"return=representation"}, body:JSON.stringify(data) });
+            if (!res.ok) throw new Error(await res.text());
+            const [newM] = await res.json();
+            members.push(newM);
+            toggleMember(newM);
+            setShowAddMember(false);
+          }}
+        />
+      )}
+
+      {/* Quick Add Company */}
+      {showAddCompany && (
+        <QuickAddModal title="+ Tambah Perusahaan" fields={[["name","Nama Perusahaan *","text"],["pic_name","Nama PIC","text"],["pic_phone","No. HP PIC","text"]]} onClose={()=>setShowAddCompany(false)}
+          onSave={async (data) => {
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/companies`, { method:"POST", headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":`Bearer ${getToken()}`,"Prefer":"return=representation"}, body:JSON.stringify({...data,status:"prospek"}) });
+            if (!res.ok) throw new Error(await res.text());
+            const [newC] = await res.json();
+            companies.push(newC);
+            selectCompany(newC);
+            setShowAddCompany(false);
+          }}
+        />
+      )}
     </Modal>
   );
 }
