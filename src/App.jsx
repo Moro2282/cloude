@@ -234,7 +234,7 @@ function ProjectCard({ project, onSelect }) {
       <StageIndicator stages={project.implementation.stages} />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16 }}>
         <div style={{ ...MINI, padding: 12 }}>
-          <div style={{ fontSize: 10, color: "#475569", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1.2 }}>Jam Training</div>
+          <div style={{ fontSize: 10, color: "#475569", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1.2 }}>Layanan Teknis</div>
           <ProgressBar value={project.trainingHours.used} max={project.trainingHours.total} />
           <div style={{ fontSize: 20, fontWeight: 800, color: trainPct >= 90 ? "#ef4444" : "#38bdf8", marginTop: 6 }}>
             {project.trainingHours.total - project.trainingHours.used} <span style={{ fontSize: 11, fontWeight: 400, color: "#475569" }}>jam sisa</span>
@@ -315,7 +315,7 @@ function DetailView({ project, onClose, onSave, onDelete, canEdit = true, canDel
 
   const daysLeft = getDaysRemaining(p.freeSupport.endDate);
   const tabs = ["overview", "training", "faktur", "implementasi", "support", "server"];
-  const tabLabel = { overview: "Overview", training: "Jam Training", faktur: "Desain Faktur", implementasi: "Implementasi", support: "Free Support", server: "Server" };
+  const tabLabel = { overview: "Overview", training: "Layanan Teknis", faktur: "Desain Faktur", implementasi: "Implementasi", support: "Free Support", server: "Server" };
 
   const SaveBtn = () => {
     if (!canEdit) return <div style={{ fontSize:12, color:"#475569", padding:"10px 0" }}>🔒 Anda hanya bisa melihat data</div>;
@@ -550,7 +550,7 @@ function exportToExcel(projects) {
   const ws3=XLSX.utils.aoa_to_sheet([["LAPORAN FREE SUPPORT"],[`Digenerate: ${today}`],[],["Nama Proyek","Klien","Email","Tgl Mulai","Tgl Berakhir","Sisa Hari","Status","Perpanjangan"],...projects.map(p=>{const d=getDaysRemaining(p.freeSupport.endDate);return[p.name,p.client,p.clientEmail,p.freeSupport.startDate,p.freeSupport.endDate,d,getSupportStatus(d),p.freeSupport.renewals];})]);
   XLSX.utils.book_append_sheet(wb,ws3,"Free Support");
   const tT=projects.reduce((a,p)=>a+p.trainingHours.total,0),tU=projects.reduce((a,p)=>a+p.trainingHours.used,0),iT=projects.reduce((a,p)=>a+p.invoiceDesigns.total,0),iU=projects.reduce((a,p)=>a+p.invoiceDesigns.used,0);
-  const ws4=XLSX.utils.aoa_to_sheet([["LAPORAN KUOTA LAYANAN"],[`Digenerate: ${today}`],[],["Nama Proyek","Klien","Jam Total","Jam Pakai","Jam Sisa","% Training","Desain Total","Desain Pakai","Desain Sisa","% Faktur"],...projects.map(p=>[p.name,p.client,p.trainingHours.total,p.trainingHours.used,p.trainingHours.total-p.trainingHours.used,`${(p.trainingHours.used/p.trainingHours.total*100).toFixed(1)}%`,p.invoiceDesigns.total,p.invoiceDesigns.used,p.invoiceDesigns.total-p.invoiceDesigns.used,`${(p.invoiceDesigns.used/p.invoiceDesigns.total*100).toFixed(1)}%`]),[],["TOTAL",`${projects.length} Proyek`,tT,tU,tT-tU,`${(tU/tT*100).toFixed(1)}%`,iT,iU,iT-iU,`${(iU/iT*100).toFixed(1)}%`]]);
+  const ws4=XLSX.utils.aoa_to_sheet([["LAPORAN KUOTA LAYANAN TEKNIS"],[`Digenerate: ${today}`],[],["Nama Proyek","Klien","Jam Total","Jam Pakai","Jam Sisa","% Training","Desain Total","Desain Pakai","Desain Sisa","% Faktur"],...projects.map(p=>[p.name,p.client,p.trainingHours.total,p.trainingHours.used,p.trainingHours.total-p.trainingHours.used,`${(p.trainingHours.used/p.trainingHours.total*100).toFixed(1)}%`,p.invoiceDesigns.total,p.invoiceDesigns.used,p.invoiceDesigns.total-p.invoiceDesigns.used,`${(p.invoiceDesigns.used/p.invoiceDesigns.total*100).toFixed(1)}%`]),[],["TOTAL",`${projects.length} Proyek`,tT,tU,tT-tU,`${(tU/tT*100).toFixed(1)}%`,iT,iU,iT-iU,`${(iU/iT*100).toFixed(1)}%`]]);
   XLSX.utils.book_append_sheet(wb,ws4,"Kuota Layanan");
   XLSX.writeFile(wb,`Laporan_Proyek_${today.replace(/\//g,"-")}.xlsx`);
 }
@@ -617,7 +617,7 @@ function LaporanModal({ projects, onClose }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 20 }}>
         {[
           ["Proyek Dipilih", filtered.length, "#38bdf8", ""],
-          ["Total Jam Training", filtered.reduce((a,p)=>a+p.trainingHours.total,0), "#10b981", " jam"],
+          ["Total Layanan Teknis", filtered.reduce((a,p)=>a+p.trainingHours.total,0), "#10b981", " jam"],
           ["Total Desain Faktur", filtered.reduce((a,p)=>a+p.invoiceDesigns.total,0), "#a78bfa", " desain"],
           ["Support Kritis", filtered.filter(p=>getDaysRemaining(p.freeSupport.endDate)<=30).length, "#ef4444", ""],
         ].map(([l,v,c,u]) => (
@@ -810,7 +810,7 @@ function AddProjectModal({ onClose, onAdd }) {
       )}
 
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-        {[["name","Nama Proyek *","text"],["client","Nama Klien *","text"],["clientEmail","Email Klien","email"],["startDate","Tanggal Mulai","date"],["trainTotal","Total Jam Training","number"],["invTotal","Total Desain Faktur","number"]].map(([k,label,type])=>(
+        {[["name","Nama Proyek *","text"],["client","Nama Klien *","text"],["clientEmail","Email Klien","email"],["startDate","Tanggal Mulai","date"],["trainTotal","Total Layanan Teknis","number"],["invTotal","Total Desain Faktur","number"]].map(([k,label,type])=>(
           <div key={k} style={MINI}>
             <label style={{ fontSize:11, color:"#64748b", display:"block", marginBottom:4 }}>{label}</label>
             <input type={type} style={INP} value={form[k]} onChange={e=>f(k,e.target.value)} />
