@@ -1159,8 +1159,7 @@ export default function App() {
             {isEditor && <button onClick={()=>setShowMaster(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #64748b", background:"#0a1525", color:"#94a3b8", cursor:"pointer", fontWeight:600, fontSize:13 }}>🗂 Data Master</button>}
             <button onClick={()=>setShowCalendar(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #0284c7", background:"#0c1a2e", color:"#38bdf8", cursor:"pointer", fontWeight:600, fontSize:13 }}>🗓 Kalender</button>
             {canEdit && <button onClick={()=>setShowAdd(true)} style={{ ...BTN, padding:"10px 20px", fontSize:14 }}>+ Proyek Baru</button>}
-            {isAdmin && (
-              <button onClick={()=>setShowUserMgr(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #7c3aed", background:"#1e1040", color:"#a78bfa", cursor:"pointer", fontWeight:600, fontSize:13 }}>👥 Users</button>}
+            {isAdmin && <button onClick={()=>setShowUserMgr(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #7c3aed", background:"#1e1040", color:"#a78bfa", cursor:"pointer", fontWeight:600, fontSize:13 }}>👥 Users</button>}
             {isAdmin && <button onClick={()=>setShowRoles(true)} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #ef4444", background:"#1c0a0a", color:"#ef4444", cursor:"pointer", fontWeight:600, fontSize:13 }}>🔐 Roles</button>}
             <ProfileMenu currentUser={currentUser} onLogout={handleLogout} />
           </div>
