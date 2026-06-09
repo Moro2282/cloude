@@ -697,7 +697,7 @@ function exportToExcel(projects) {
 
 // ─── LAPORAN MODAL ────────────────────────────────────────────────────────────
 
-function LaporanModal({ projects, onClose }) {
+function LaporanModal({ projects, onClose, embedded }) {
   const [selected, setSelected] = useState(projects.map(p => p.id));
   const [filterSupport, setFilterSupport] = useState("all");
   const [filterImpl, setFilterImpl] = useState("all");
@@ -1184,13 +1184,13 @@ export default function App() {
   // Page router
   const renderPage = () => {
     if (activePage === "jadwal") return <ActivityPage onClose={()=>setActivePage("dashboard")} currentUser={currentUser} isAdmin={isAdmin} />;
-    if (activePage === "laporan") return <LaporanInline projects={projects} />;
+    if (activePage === "laporan") return <LaporanModal projects={projects} onClose={()=>setActivePage("dashboard")} embedded={true} />;
     if (activePage === "komisi") return <KomisiPage onClose={()=>setActivePage("dashboard")} />;
     if (activePage === "kalender") return <CalendarPage onClose={()=>setActivePage("dashboard")} projects={projects} />;
     if (activePage === "data_master") return <MasterDataPage onClose={()=>setActivePage("dashboard")} isAdmin={isAdmin} />;
-    if (activePage === "users") return <UserManagerInline currentUser={currentUser} />;
+    if (activePage === "users") return <UserManager currentUser={currentUser} onClose={()=>setActivePage("dashboard")} />;
     if (activePage === "roles") return <RoleManagerPage onClose={()=>setActivePage("dashboard")} />;
-    return null; // dashboard & proyek_baru handled inline
+    return null;
   };
 
   const fullPageRoutes = ["jadwal","laporan","komisi","kalender","data_master","users","roles"];
@@ -1371,7 +1371,6 @@ export default function App() {
         );
       })()}
       {showAdd && canEdit && <AddProjectModal onClose={()=>setShowAdd(false)} onAdd={handleAddProject} />}
-      {showLaporan && <LaporanModal projects={projects} onClose={()=>setShowLaporan(false)} />}
       {showUserMgr && isAdmin && <UserManager currentUser={currentUser} onClose={()=>setShowUserMgr(false)} />}
     </div>
   );
