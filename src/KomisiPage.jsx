@@ -221,7 +221,7 @@ function KomisiEditModal({ session, onClose, onSaved }) {
 
           {/* Person 2 toggle */}
           <button onClick={()=>setForm(f=>({...f,has_second_person:!f.has_second_person}))} style={{ padding:"7px 14px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", border:`1px solid ${form.has_second_person?"#ef444433":"#1e293b"}`, background:form.has_second_person?"#1c0a0a":"transparent", color:form.has_second_person?"#ef4444":"#64748b" }}>
-            {form.has_second_person?"✕ Hapus Orang Kedua":"+  Tambah Orang Kedua"}
+            {form.has_second_person ? "✕ Hapus Orang Kedua" : "+ Tambah Orang Kedua"}
           </button>
 
           {form.has_second_person && (
