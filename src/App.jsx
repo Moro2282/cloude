@@ -257,6 +257,87 @@ function ProjectCard({ project, onSelect }) {
 
 // ─── DETAIL VIEW ──────────────────────────────────────────────────────────────
 
+// ─── OVERVIEW TAB WITH COMPANY PICKER ────────────────────────────────────────
+function OverviewTab({ p, updateField, SaveBtn }) {
+  const SUPA_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
+  const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
+  const [companies, setCompanies] = useState([]);
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPA_KEY;
+    fetch(`${SUPA_URL}/rest/v1/companies?order=name.asc`, {
+      headers: { "apikey": SUPA_KEY, "Authorization": `Bearer ${token}` }
+    }).then(r => r.json()).then(setCompanies).catch(() => {});
+  }, []);
+
+  const filtered = companies.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    (c.pic_name || "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  const selectCompany = (c) => {
+    updateField("client", c.name);
+    if (c.pic_phone) updateField("clientEmail", c.pic_phone);
+    setOpen(false);
+    setSearch("");
+  };
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+        {/* Nama Klien - with company picker */}
+        <div style={MINI}>
+          <label style={{ fontSize: 11, color: "#64748b" }}>Nama Klien / Perusahaan</label>
+          {companies.length > 0 && (
+            <div style={{ marginTop: 6, marginBottom: 6 }}>
+              <button type="button" onClick={() => setOpen(!open)} style={{ padding: "4px 12px", borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${open ? "#38bdf8" : "#1e293b"}`, background: open ? "#0c2a3f" : "transparent", color: open ? "#38bdf8" : "#475569" }}>
+                🏢 Pilih dari Master {open ? "▲" : "▼"}
+              </button>
+              {open && (
+                <div style={{ marginTop: 6, background: "#060d1a", border: "1px solid #1e293b", borderRadius: 10, padding: 10, position: "relative", zIndex: 100 }}>
+                  <input style={{ ...INP, marginTop: 0, marginBottom: 8 }} placeholder="Cari perusahaan..." value={search} onChange={e => setSearch(e.target.value)} autoFocus />
+                  <div style={{ maxHeight: 180, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
+                    {filtered.map(c => (
+                      <button key={c.id} type="button" onClick={() => selectCompany(c)} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${p.client === c.name ? "#10b981" : "#1e293b"}`, background: p.client === c.name ? "#052e16" : "transparent", color: "#e2e8f0", cursor: "pointer", textAlign: "left", fontSize: 13 }}>
+                        <div style={{ fontWeight: 600 }}>{c.name}</div>
+                        {c.pic_name && <div style={{ fontSize: 11, color: "#475569" }}>👤 {c.pic_name} {c.pic_phone && `· ${c.pic_phone}`}</div>}
+                        <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 999, background: c.status === "klien" ? "#052e16" : "#451a03", color: c.status === "klien" ? "#10b981" : "#f59e0b" }}>{c.status === "klien" ? "Klien" : "Prospek"}</span>
+                      </button>
+                    ))}
+                    {filtered.length === 0 && <div style={{ fontSize: 12, color: "#334155", padding: 8 }}>Tidak ditemukan</div>}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <input type="text" style={INP} value={p.client} onChange={e => updateField("client", e.target.value)} placeholder="Nama klien / perusahaan" />
+        </div>
+
+        {/* Email Klien */}
+        <div style={MINI}>
+          <label style={{ fontSize: 11, color: "#64748b" }}>Email / No. HP Klien</label>
+          <input type="text" style={INP} value={p.clientEmail} onChange={e => updateField("clientEmail", e.target.value)} placeholder="Email atau no HP" />
+        </div>
+
+        {/* Nama Proyek */}
+        <div style={MINI}>
+          <label style={{ fontSize: 11, color: "#64748b" }}>Nama Proyek</label>
+          <input type="text" style={INP} value={p.name} onChange={e => updateField("name", e.target.value)} />
+        </div>
+
+        {/* Tanggal Mulai */}
+        <div style={MINI}>
+          <label style={{ fontSize: 11, color: "#64748b" }}>Tanggal Mulai</label>
+          <input type="date" style={INP} value={p.startDate} onChange={e => updateField("startDate", e.target.value)} />
+        </div>
+      </div>
+      <SaveBtn />
+    </div>
+  );
+}
+
 function DetailView({ project, onClose, onSave, onDelete, canEdit = true, canDelete = true, canTraining = true, currentUser }) {
   const [p, setP] = useState(() => JSON.parse(JSON.stringify(project)));
   const [activeTab, setActiveTab] = useState("overview");
