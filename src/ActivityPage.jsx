@@ -230,13 +230,6 @@ function CompanyMasterModal({ onClose }) {
   );
 }
 
-const SUPABASE_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
-function getToken() {
-  try { return JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPABASE_KEY; }
-  catch { return SUPABASE_KEY; }
-}
-
 // ─── SEARCH PICKERS ───────────────────────────────────────────────────────────
 
 function MemberPicker({ members, selectedIds, selectedNames, onToggle, onClear, onAddNew }) {
