@@ -982,8 +982,8 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
       )}
     </div>
 
-      {/* Edit Session Modal */}
-      {editSession && (
+    {/* Edit Session Modal */}
+    {editSession && (
         <EditSessionModal
           session={editSession}
           project={project}
@@ -994,7 +994,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
           onSave={handleUpdateSession}
           saving={saving}
         />
-      )}
+    )}
     </>
   );
 }
