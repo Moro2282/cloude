@@ -907,7 +907,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                             {s.person2_vehicle && <span style={{ marginLeft: 4, fontSize: 10, color: "#10b981" }}>🚗</span>}
                           </div>
                         )}
-                        <div style={{ fontSize: 12, color: "#64748b", gridColumn: s.has_second_person ? "1 / -1" : "" }}>
+                        <div style={{ fontSize: 12, color: "#64748b", ...(s.has_second_person ? {gridColumn:"1 / -1"} : {}) }}>
                           <span style={{ color: "#475569" }}>👥 Peserta: </span>{s.participants}
                         </div>
                       </div>
