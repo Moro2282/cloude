@@ -235,7 +235,7 @@ function EditSessionModal({ session, project, teamMembers, currentUser, sessions
     <div style={{ position:"fixed", inset:0, background:"#00000099", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={onClose}>
       <div style={{ background:"#0f172a", border:"1px solid #1e293b", borderRadius:16, padding:24, maxWidth:680, width:"100%", maxHeight:"90vh", overflowY:"auto", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif" }} onClick={e=>e.stopPropagation()}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-          <div style={{ fontSize:16, fontWeight:700, color:"#f1f5f9" }}>✏️ Edit Sesi Training</div>
+          <div style={{ fontSize:16, fontWeight:700, color:"#f1f5f9" }}>✏️ Edit Sesi Layanan</div>
           <button onClick={onClose} style={{ background:"none", border:"none", color:"#64748b", fontSize:20, cursor:"pointer" }}>✕</button>
         </div>
 
@@ -568,7 +568,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
   };
 
   const handleDelete = async (session) => {
-    if (!window.confirm(`Hapus sesi training "${session.topic}" pada ${session.training_date}?`)) return;
+    if (!window.confirm(`Hapus sesi layanan "${session.topic}" pada ${session.training_date}?`)) return;
     try {
       await deleteSession(session.id);
       setSessions(prev => prev.filter(s => s.id !== session.id));
@@ -591,7 +591,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
     <div>
       {/* Sub tabs */}
       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-        {[["histori", "📋 Histori Training"], ["kuota", "⏱ Kelola Kuota"]].map(([t, l]) => (
+        {[["histori", "📋 Histori Layanan"], ["kuota", "⏱ Kelola Kuota"]].map(([t, l]) => (
           <button key={t} onClick={() => setSubTab(t)} style={{
             padding: "6px 16px", borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: "pointer",
             border: `1px solid ${subTab === t ? "#38bdf8" : "#1e293b"}`,
@@ -614,7 +614,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
           {/* Summary bar */}
           <div style={{ ...MINI, marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <div style={{ fontSize: 12, color: "#64748b" }}>Pemakaian Jam Training</div>
+              <div style={{ fontSize: 12, color: "#64748b" }}>Pemakaian Layanan Teknis</div>
               <div style={{ fontSize: 12, color: "#475569" }}>{sessions.length} sesi tercatat</div>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 5, color: "#64748b" }}>
@@ -641,11 +641,11 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                   color: remaining <= 0 ? "#334155" : "#fff",
                   cursor: remaining <= 0 ? "not-allowed" : "pointer", fontWeight: 600, fontSize: 13,
                 }}>
-                  {remaining <= 0 ? "⚠️ Kuota Habis" : "+ Catat Sesi Training"}
+                  {remaining <= 0 ? "⚠️ Kuota Habis" : "+ Catat Sesi Layanan"}
                 </button>
               ) : (
                 <div style={{ ...MINI, borderColor: "#1d4ed8" }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#e2e8f0", marginBottom: 14 }}>📝 Catat Sesi Training Baru</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#e2e8f0", marginBottom: 14 }}>📝 Catat Sesi Layanan Baru</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 12 }}>
 
                     {/* Session type selector */}
@@ -855,8 +855,8 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
           ) : sessions.length === 0 ? (
             <div style={{ textAlign: "center", padding: "32px 20px", color: "#334155" }}>
               <div style={{ fontSize: 36 }}>📚</div>
-              <div style={{ fontSize: 14, marginTop: 10, color: "#475569" }}>Belum ada sesi training tercatat</div>
-              {canTraining && <div style={{ fontSize: 12, marginTop: 4 }}>Klik "+ Catat Sesi Training" untuk mulai</div>}
+              <div style={{ fontSize: 14, marginTop: 10, color: "#475569" }}>Belum ada sesi layanan tercatat</div>
+              {canTraining && <div style={{ fontSize: 12, marginTop: 4 }}>Klik "+ Catat Sesi Layanan" untuk mulai</div>}
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -945,7 +945,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
           {canEdit ? (
             <>
               <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 12 }}>
-                ⚠️ Edit kuota di sini hanya untuk koreksi manual. Pemakaian jam otomatis dihitung dari histori sesi training.
+                ⚠️ Edit kuota di sini hanya untuk koreksi manual. Pemakaian jam otomatis dihitung dari histori sesi layanan.
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
                 <div style={MINI}>
