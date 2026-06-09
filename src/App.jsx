@@ -981,6 +981,41 @@ export default function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [activePage, setActivePage] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    localStorage.setItem("theme", next);
+  };
+
+  const T = theme === "dark" ? {
+    bg:        "#060d1a",
+    bgCard:    "#0c1628",
+    bgSidebar: "#080f1e",
+    bgInput:   "#0c1628",
+    bgHover:   "#0a1525",
+    border:    "#1a2744",
+    borderInput:"#1e293b",
+    text:      "#e2e8f0",
+    textMuted: "#475569",
+    textFaint: "#334155",
+    accent:    "#38bdf8",
+    accentBg:  "#0c2a3f",
+  } : {
+    bg:        "#f1f5f9",
+    bgCard:    "#ffffff",
+    bgSidebar: "#1e293b",
+    bgInput:   "#f8fafc",
+    bgHover:   "#f1f5f9",
+    border:    "#e2e8f0",
+    borderInput:"#cbd5e1",
+    text:      "#0f172a",
+    textMuted: "#64748b",
+    textFaint: "#94a3b8",
+    accent:    "#1d4ed8",
+    accentBg:  "#dbeafe",
+  };
   const [showLaporan, setShowLaporan] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -1196,17 +1231,17 @@ export default function App() {
   const isFullPage = fullPageRoutes.includes(activePage);
 
   return (
-    <div style={{ display:"flex", minHeight:"100vh", background:"#060d1a", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif", color:"#e2e8f0" }}>
+    <div style={{ display:"flex", minHeight:"100vh", background:T.bg, fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif", color:T.text, transition:"background 0.3s, color 0.3s" }}>
       <style>{`*,*::before,*::after{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#0c1628}::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:3px}`}</style>
 
       {/* ── SIDEBAR ── */}
       <div style={{
-        width: sidebarCollapsed ? 64 : 220, flexShrink:0, background:"#080f1e",
-        borderRight:"1px solid #1a2744", display:"flex", flexDirection:"column",
+        width: sidebarCollapsed ? 64 : 220, flexShrink:0, background:T.bgSidebar,
+        borderRight:`1px solid ${T.border}`, display:"flex", flexDirection:"column",
         transition:"width 0.2s", position:"sticky", top:0, height:"100vh", overflowY:"auto", overflowX:"hidden",
       }}>
         {/* Logo */}
-        <div style={{ padding: sidebarCollapsed ? "20px 0" : "20px 16px", borderBottom:"1px solid #1a2744", display:"flex", alignItems:"center", gap:10 }}>
+        <div style={{ padding: sidebarCollapsed ? "20px 0" : "20px 16px", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", gap:10 }}>
           <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(135deg,#1d4ed8,#7c3aed)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0, margin: sidebarCollapsed?"0 auto":0 }}>⚡</div>
           {!sidebarCollapsed && <div><div style={{ fontSize:14, fontWeight:800, color:"#f1f5f9", lineHeight:1.2 }}>Aktivity</div><div style={{ fontSize:10, color:"#475569", letterSpacing:1 }}>KGB</div></div>}
         </div>
@@ -1233,8 +1268,8 @@ export default function App() {
                     marginBottom:2, transition:"all 0.15s",
                     borderLeft: isActive ? "3px solid #38bdf8" : "3px solid transparent",
                   }}
-                    onMouseEnter={e=>{ if(!isActive){ e.currentTarget.style.background="#0a1525"; e.currentTarget.style.color="#94a3b8"; }}}
-                    onMouseLeave={e=>{ if(!isActive){ e.currentTarget.style.background="transparent"; e.currentTarget.style.color="#475569"; }}}>
+                    onMouseEnter={e=>{ if(!isActive){ e.currentTarget.style.background=T.bgHover; }}}
+                    onMouseLeave={e=>{ if(!isActive){ e.currentTarget.style.background="transparent"; }}}>
                     <span style={{ fontSize:16, flexShrink:0 }}>{item.icon}</span>
                     {!sidebarCollapsed && <span style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{item.label}</span>}
                   </button>
@@ -1245,7 +1280,7 @@ export default function App() {
         </div>
 
         {/* Collapse toggle */}
-        <div style={{ padding:"12px 8px", borderTop:"1px solid #1a2744" }}>
+        <div style={{ padding:"12px 8px", borderTop:`1px solid ${T.border}` }}>
           <button onClick={()=>setSidebarCollapsed(!sidebarCollapsed)} style={{
             width:"100%", padding:"8px", borderRadius:8, border:"none",
             background:"transparent", color:"#334155", cursor:"pointer", fontSize:16,
@@ -1261,8 +1296,8 @@ export default function App() {
         {/* Top bar */}
         <div style={{ padding:"14px 24px", borderBottom:"1px solid #1a2744", display:"flex", justifyContent:"space-between", alignItems:"center", background:"#080f1e", position:"sticky", top:0, zIndex:100 }}>
           <div>
-            <div style={{ fontSize:11, color:"#334155", letterSpacing:2, textTransform:"uppercase" }}>Activity KGB</div>
-            <div style={{ fontSize:18, fontWeight:800, color:"#f1f5f9", lineHeight:1.2 }}>
+            <div style={{ fontSize:11, color:T.textFaint, letterSpacing:2, textTransform:"uppercase" }}>Activity KGB</div>
+            <div style={{ fontSize:18, fontWeight:800, color:T.text, lineHeight:1.2 }}>
               {visibleNav.flatMap(g=>g.items).find(i=>i.id===activePage)?.label || "Dashboard"}
             </div>
           </div>
@@ -1273,12 +1308,16 @@ export default function App() {
                 ⚠️ {expiringSoon.length} support hampir habis
               </div>
             )}
-            <ProfileMenu currentUser={currentUser} onLogout={handleLogout} />
+            {/* Theme toggle */}
+            <button onClick={toggleTheme} title={theme==="dark"?"Ganti ke Tema Terang":"Ganti ke Tema Gelap"} style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${T.border}`, background:T.bgCard, color:T.text, cursor:"pointer", fontSize:16, transition:"all 0.2s" }}>
+              {theme==="dark" ? "☀️" : "🌙"}
+            </button>
+            <ProfileMenu currentUser={currentUser} onLogout={handleLogout} theme={theme} />
           </div>
         </div>
 
         {/* Page content */}
-        <div style={{ flex:1, padding: isFullPage ? 0 : "24px", overflowY:"auto" }}>
+        <div style={{ flex:1, padding: isFullPage ? 0 : "24px", overflowY:"auto", background:T.bg }}>
           {isFullPage ? renderPage() : (
             <>
               {/* Dashboard content */}
@@ -1318,7 +1357,7 @@ export default function App() {
                   <div key={s.label} style={{ background:"#0c1628", border:"1px solid #1a2744", borderRadius:14, padding:"16px 18px" }}>
                     <div style={{ fontSize:20 }}>{s.icon}</div>
                     <div style={{ fontSize:28, fontWeight:900, color:s.color, lineHeight:1.1 }}>{s.val}</div>
-                    <div style={{ fontSize:11, color:"#475569", marginTop:2 }}>{s.label}</div>
+                    <div style={{ fontSize:11, color:T.textMuted, marginTop:2 }}>{s.label}</div>
                   </div>
                 ))}
               </div>
