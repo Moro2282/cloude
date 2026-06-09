@@ -587,6 +587,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
   const barColor = pct >= 90 ? "#ef4444" : pct >= 70 ? "#f59e0b" : "#10b981";
 
   return (
+    <>
     <div>
       {/* Sub tabs */}
       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
@@ -994,5 +995,6 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
           saving={saving}
         />
       )}
+    </>
   );
 }
