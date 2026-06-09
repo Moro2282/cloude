@@ -88,9 +88,186 @@ function calcKomisi(session) {
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
+// ─── EDIT SESSION FROM KOMISI ────────────────────────────────────────────────
+function KomisiEditModal({ session, onClose, onSaved }) {
+  const SUPA_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
+  const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
+
+  const [form, setForm] = useState({
+    training_date: session.training_date || "",
+    session_type: session.session_type || "training",
+    is_online: session.is_online || false,
+    trainer_name: session.trainer_name || "",
+    is_partner: session.is_partner || false,
+    use_vehicle: session.use_vehicle || false,
+    has_second_person: session.has_second_person || false,
+    person2_name: session.person2_name || "",
+    person2_is_partner: session.person2_is_partner || false,
+    person2_vehicle: session.person2_vehicle || false,
+    topic: session.topic || "",
+    participants: session.participants || "",
+    start_time: session.start_time || "",
+    end_time: session.end_time || "",
+    hours_used: session.hours_used || 0,
+    notes: session.notes || "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  const INP = { width:"100%", background:"#0c1628", border:"1px solid #1e293b", borderRadius:8, padding:"8px 10px", color:"#e2e8f0", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box", marginTop:4 };
+
+  const calcHours = (s, e) => {
+    if (!s || !e) return parseFloat(form.hours_used) || 0;
+    const [sh,sm] = s.split(":").map(Number);
+    const [eh,em] = e.split(":").map(Number);
+    const diff = (eh*60+em)-(sh*60+sm);
+    return diff > 0 ? Math.round(diff/60*10)/10 : 0;
+  };
+
+  const hrs = calcHours(form.start_time, form.end_time);
+
+  // Tarif display
+  const hasBuddy = form.has_second_person && form.person2_name;
+  const p1Tarif = form.session_type==="onsite" ? (hasBuddy?70000:100000) : (hasBuddy?(form.is_partner?100000:70000):(form.is_partner?150000:100000));
+  const p2Tarif = hasBuddy ? (form.session_type==="onsite"?70000:(form.person2_is_partner?100000:70000)) : 0;
+  const totalKomisi = hrs * p1Tarif + (hasBuddy ? hrs * p2Tarif : 0) + (form.use_vehicle?100000:0) + (hasBuddy&&form.person2_vehicle?100000:0);
+
+  const handleSave = async () => {
+    if (!form.trainer_name) { setErr("Nama wajib diisi"); return; }
+    setSaving(true);
+    try {
+      const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPA_KEY;
+      const updated = { ...form, hours_used: hrs || form.hours_used };
+      const res = await fetch(`${SUPA_URL}/rest/v1/training_sessions?id=eq.${session.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type":"application/json", "apikey":SUPA_KEY, "Authorization":`Bearer ${token}`, "Prefer":"return=representation" },
+        body: JSON.stringify(updated),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const [data] = await res.json();
+      onSaved(data);
+    } catch(e) { setErr(e.message); }
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#00000099", zIndex:4000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={onClose}>
+      <div style={{ background:"#0f172a", border:"1px solid #1e293b", borderRadius:16, padding:28, maxWidth:700, width:"100%", maxHeight:"90vh", overflowY:"auto", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif" }} onClick={e=>e.stopPropagation()}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+          <div>
+            <div style={{ fontSize:17, fontWeight:700, color:"#f1f5f9" }}>✏️ Edit Sesi Layanan</div>
+            <div style={{ fontSize:12, color:"#475569", marginTop:2 }}>Proyek: {session.projects?.name || "-"} · ID: {session.id?.slice(0,8)}</div>
+          </div>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#64748b", fontSize:22, cursor:"pointer" }}>✕</button>
+        </div>
+
+        {err && <div style={{ padding:"8px 12px", borderRadius:8, marginBottom:14, fontSize:12, background:"#1c0a0a", color:"#ef4444" }}>⚠️ {err}</div>}
+
+        {/* Komisi preview */}
+        <div style={{ background:"#052e16", border:"1px solid #10b98133", borderRadius:10, padding:"10px 16px", marginBottom:16, display:"flex", gap:16, flexWrap:"wrap" }}>
+          <div><div style={{ fontSize:10, color:"#475569" }}>DURASI</div><div style={{ fontSize:16, fontWeight:700, color:"#38bdf8" }}>{hrs||form.hours_used} jam</div></div>
+          <div><div style={{ fontSize:10, color:"#475569" }}>TARIF P1</div><div style={{ fontSize:14, fontWeight:600, color:"#94a3b8" }}>Rp {p1Tarif.toLocaleString("id")}/jam</div></div>
+          {hasBuddy && <div><div style={{ fontSize:10, color:"#475569" }}>TARIF P2</div><div style={{ fontSize:14, fontWeight:600, color:"#94a3b8" }}>Rp {p2Tarif.toLocaleString("id")}/jam</div></div>}
+          <div style={{ marginLeft:"auto" }}><div style={{ fontSize:10, color:"#475569" }}>TOTAL KOMISI</div><div style={{ fontSize:18, fontWeight:800, color:"#10b981" }}>Rp {totalKomisi.toLocaleString("id")}</div></div>
+        </div>
+
+        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+          {/* Type + Online */}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+            <div>
+              <label style={{ fontSize:11, color:"#64748b" }}>Jenis Sesi</label>
+              <div style={{ display:"flex", gap:6, marginTop:4 }}>
+                {[["training","📚 Training","#38bdf8","#0c2a3f"],["onsite","🔧 Onsite IT","#10b981","#052e16"]].map(([v,l,c,bg])=>(
+                  <button key={v} onClick={()=>setForm(f=>({...f,session_type:v}))} style={{ flex:1, padding:"7px", borderRadius:8, fontSize:12, fontWeight:700, cursor:"pointer", border:`1px solid ${form.session_type===v?c:"#1e293b"}`, background:form.session_type===v?bg:"transparent", color:form.session_type===v?c:"#475569" }}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize:11, color:"#64748b" }}>Tanggal</label>
+              <input type="date" style={INP} value={form.training_date} onChange={e=>setForm(f=>({...f,training_date:e.target.value}))} />
+            </div>
+          </div>
+
+          {/* Time */}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
+            <div><label style={{ fontSize:11, color:"#64748b" }}>Jam Mulai</label><input type="time" style={INP} value={form.start_time} onChange={e=>setForm(f=>({...f,start_time:e.target.value}))} /></div>
+            <div><label style={{ fontSize:11, color:"#64748b" }}>Jam Selesai</label><input type="time" style={INP} value={form.end_time} onChange={e=>setForm(f=>({...f,end_time:e.target.value}))} /></div>
+            <div style={{ display:"flex", flexDirection:"column", justifyContent:"flex-end" }}>
+              <label style={{ fontSize:11, color:"#64748b" }}>Durasi</label>
+              <div style={{ ...INP, marginTop:4, color: hrs>0?"#38bdf8":"#334155", fontWeight:700 }}>{hrs>0?`${hrs} jam`:"—"}</div>
+            </div>
+          </div>
+
+          {/* Person 1 */}
+          <div style={{ background:"#0a1525", border:"1px solid #1a2744", borderRadius:10, padding:12 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:8 }}>👤 {form.session_type==="onsite"?"Teknisi 1":"Trainer / Orang 1"}</div>
+            <input style={INP} value={form.trainer_name} onChange={e=>setForm(f=>({...f,trainer_name:e.target.value}))} placeholder="Nama" />
+            {form.session_type==="training" && (
+              <div style={{ display:"flex", gap:6, marginTop:8 }}>
+                {[["internal",false,"🏢 Internal","#38bdf8","#0c2a3f"],["partner",true,"🤝 Partner","#a78bfa","#1e1040"]].map(([k,v,l,c,bg])=>(
+                  <button key={k} onClick={()=>setForm(f=>({...f,is_partner:v}))} style={{ flex:1, padding:"6px", borderRadius:8, fontSize:12, fontWeight:700, cursor:"pointer", border:`1px solid ${form.is_partner===v?c:"#1e293b"}`, background:form.is_partner===v?bg:"transparent", color:form.is_partner===v?c:"#475569" }}>{l}</button>
+                ))}
+              </div>
+            )}
+            {!form.is_online && (
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"#060d1a", borderRadius:8, padding:"7px 12px", marginTop:8 }}>
+                <span style={{ fontSize:12, color:"#64748b" }}>🚗 Kendaraan Pribadi</span>
+                <div onClick={()=>setForm(f=>({...f,use_vehicle:!f.use_vehicle}))} style={{ width:36,height:20,borderRadius:999,cursor:"pointer",background:form.use_vehicle?"#10b981":"#1e293b",position:"relative",transition:"background 0.2s" }}>
+                  <div style={{ position:"absolute",top:2,left:form.use_vehicle?18:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left 0.2s" }} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Person 2 toggle */}
+          <button onClick={()=>setForm(f=>({...f,has_second_person:!f.has_second_person}))} style={{ padding:"7px 14px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", border:`1px solid ${form.has_second_person?"#ef444433":"#1e293b"}`, background:form.has_second_person?"#1c0a0a":"transparent", color:form.has_second_person?"#ef4444":"#64748b" }}>
+            {form.has_second_person?"✕ Hapus Orang Kedua":"+  Tambah Orang Kedua"}
+          </button>
+
+          {form.has_second_person && (
+            <div style={{ background:"#0a1525", border:"1px solid #1d4ed8", borderRadius:10, padding:12 }}>
+              <div style={{ fontSize:12, fontWeight:600, color:"#38bdf8", marginBottom:8 }}>👥 Orang 2</div>
+              <input style={INP} value={form.person2_name} onChange={e=>setForm(f=>({...f,person2_name:e.target.value}))} placeholder="Nama orang kedua" />
+              {form.session_type==="training" && (
+                <div style={{ display:"flex", gap:6, marginTop:8 }}>
+                  {[["internal",false,"🏢 Internal","#38bdf8","#0c2a3f"],["partner",true,"🤝 Partner","#a78bfa","#1e1040"]].map(([k,v,l,c,bg])=>(
+                    <button key={k} onClick={()=>setForm(f=>({...f,person2_is_partner:v}))} style={{ flex:1, padding:"6px", borderRadius:8, fontSize:12, fontWeight:700, cursor:"pointer", border:`1px solid ${form.person2_is_partner===v?c:"#1e293b"}`, background:form.person2_is_partner===v?bg:"transparent", color:form.person2_is_partner===v?c:"#475569" }}>{l}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Materi & Peserta */}
+          <div>
+            <label style={{ fontSize:11, color:"#64748b" }}>Materi / Topik</label>
+            <textarea style={{ ...INP, resize:"vertical" }} rows={3} value={form.topic} onChange={e=>setForm(f=>({...f,topic:e.target.value}))} />
+          </div>
+          <div>
+            <label style={{ fontSize:11, color:"#64748b" }}>Peserta</label>
+            <input style={INP} value={form.participants} onChange={e=>setForm(f=>({...f,participants:e.target.value}))} />
+          </div>
+          <div>
+            <label style={{ fontSize:11, color:"#64748b" }}>Catatan</label>
+            <textarea style={{ ...INP, resize:"vertical" }} rows={2} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} />
+          </div>
+
+          <div style={{ display:"flex", gap:10 }}>
+            <button onClick={handleSave} disabled={saving} style={{ padding:"10px 24px", borderRadius:8, border:"none", background:saving?"#1e293b":"#1d4ed8", color:saving?"#475569":"#fff", cursor:saving?"not-allowed":"pointer", fontWeight:600, fontSize:14 }}>
+              {saving?"Menyimpan...":"💾 Simpan Perubahan"}
+            </button>
+            <button onClick={onClose} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>Batal</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function KomisiPage({ onClose }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editTarget, setEditTarget] = useState(null);
   const [error, setError] = useState(null);
 
   // Filters
@@ -412,7 +589,9 @@ export default function KomisiPage({ onClose }) {
                 {filtered.map((s,i) => {
                   const k = calcKomisi(s);
                   return (
-                    <tr key={s.id} style={{ borderBottom:"1px solid #0f172a", background: i%2===0?"transparent":"#0a1525" }}>
+                    <tr key={s.id} onClick={()=>setEditTarget(s)} style={{ borderBottom:"1px solid #0f172a", background: i%2===0?"transparent":"#0a1525", cursor:"pointer" }}
+                      onMouseEnter={e=>e.currentTarget.style.background="#0c2a3f33"}
+                      onMouseLeave={e=>e.currentTarget.style.background=i%2===0?"transparent":"#0a1525"}>
                       <td style={{ padding:"10px 12px", color:"#94a3b8", whiteSpace:"nowrap" }}>{fmtDate(s.training_date)}</td>
                       <td style={{ padding:"10px 12px", color:"#e2e8f0", fontWeight:600 }}>{s.trainer_name}</td>
                       <td style={{ padding:"10px 12px" }}>
@@ -462,5 +641,16 @@ export default function KomisiPage({ onClose }) {
         )}
       </div>
     </div>
+
+      {editTarget && (
+        <KomisiEditModal
+          session={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={(updated) => {
+            setSessions(prev => prev.map(s => s.id === updated.id ? { ...s, ...updated } : s));
+            setEditTarget(null);
+          }}
+        />
+      )}
   );
 }
