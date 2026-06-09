@@ -76,10 +76,205 @@ async function deleteSession(id) {
 const INP = { width: "100%", background: "#0c1628", border: "1px solid #1e293b", borderRadius: 8, padding: "8px 10px", color: "#e2e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box", marginTop: 4 };
 const MINI = { background: "#0a1525", border: "1px solid #1a2744", borderRadius: 10, padding: 14 };
 
+// ─── EDIT SESSION MODAL ──────────────────────────────────────────────────────
+function EditSessionModal({ session, project, teamMembers, currentUser, sessions, onClose, onSave, saving }) {
+  const calcHours = (start, end) => {
+    if (!start || !end) return 0;
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+    const diff = (eh * 60 + em) - (sh * 60 + sm);
+    return diff > 0 ? Math.round(diff / 60 * 10) / 10 : 0;
+  };
+
+  const [form, setForm] = useState({
+    training_date: session.training_date,
+    session_type: session.session_type || "training",
+    person1_name: session.trainer_name || "",
+    person1_is_partner: session.is_partner || false,
+    person1_vehicle: session.use_vehicle || false,
+    has_second_person: session.has_second_person || false,
+    person2_name: session.person2_name || "",
+    person2_is_partner: session.person2_is_partner || false,
+    person2_vehicle: session.person2_vehicle || false,
+    topics: session.topic || "",
+    participants: session.participants || "",
+    start_time: session.start_time || "08:00",
+    end_time: session.end_time || "10:00",
+    notes: session.notes || "",
+  });
+  const [err, setErr] = useState("");
+
+  const hoursFromTime = calcHours(form.start_time, form.end_time);
+
+  // Remaining hours excluding this session
+  const otherHours = sessions
+    .filter(s => s.id !== session.id)
+    .reduce((a, s) => a + parseFloat(s.hours_used || 0), 0);
+  const remaining = project.trainingHours.total - otherHours;
+
+  const handleSave = async () => {
+    if (!form.person1_name || !form.topics || !form.start_time || !form.end_time) {
+      setErr("Nama, materi, jam mulai & selesai wajib diisi"); return;
+    }
+    if (hoursFromTime <= 0) { setErr("Jam selesai harus lebih dari jam mulai"); return; }
+    if (hoursFromTime > remaining) { setErr(`Durasi (${hoursFromTime} jam) melebihi sisa kuota (${remaining} jam)`); return; }
+
+    const updated = {
+      training_date: form.training_date,
+      session_type: form.session_type,
+      trainer_name: form.person1_name,
+      is_partner: form.session_type === "training" ? form.person1_is_partner : false,
+      use_vehicle: form.person1_vehicle,
+      has_second_person: form.has_second_person,
+      person2_name: form.has_second_person ? form.person2_name : null,
+      person2_is_partner: form.has_second_person ? form.person2_is_partner : false,
+      person2_vehicle: form.has_second_person ? form.person2_vehicle : false,
+      technician_count: form.has_second_person ? 2 : 1,
+      topic: form.topics,
+      participants: form.participants,
+      hours_used: hoursFromTime,
+      start_time: form.start_time,
+      end_time: form.end_time,
+      notes: form.notes,
+    };
+    await onSave(session.id, updated);
+  };
+
+  const INP_S = { width:"100%", background:"#0c1628", border:"1px solid #1e293b", borderRadius:8, padding:"7px 10px", color:"#e2e8f0", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box", marginTop:4 };
+  const MINI_S = { background:"#0a1525", border:"1px solid #1a2744", borderRadius:10, padding:12 };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#00000099", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={onClose}>
+      <div style={{ background:"#0f172a", border:"1px solid #1e293b", borderRadius:16, padding:24, maxWidth:680, width:"100%", maxHeight:"90vh", overflowY:"auto", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif" }} onClick={e=>e.stopPropagation()}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+          <div style={{ fontSize:16, fontWeight:700, color:"#f1f5f9" }}>✏️ Edit Sesi Training</div>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#64748b", fontSize:20, cursor:"pointer" }}>✕</button>
+        </div>
+
+        {err && <div style={{ padding:"8px 12px", borderRadius:8, marginBottom:14, fontSize:12, background:"#1c0a0a", color:"#ef4444", border:"1px solid #ef444433" }}>⚠️ {err}</div>}
+
+        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+          {/* Session type */}
+          <div style={{ display:"flex", gap:8 }}>
+            {[["training","📚 Training"],["onsite","🔧 Onsite IT"]].map(([v,l])=>(
+              <button key={v} onClick={()=>setForm(f=>({...f,session_type:v}))} style={{ flex:1, padding:"9px", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer", border:`1px solid ${form.session_type===v?(v==="training"?"#38bdf8":"#10b981"):"#1e293b"}`, background:form.session_type===v?(v==="training"?"#0c2a3f":"#052e16"):"transparent", color:form.session_type===v?(v==="training"?"#38bdf8":"#10b981"):"#475569" }}>{l}</button>
+            ))}
+          </div>
+
+          {/* Date & Time */}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:10 }}>
+            <div style={{ gridColumn:"1/2" }}><label style={{ fontSize:11, color:"#64748b" }}>Tanggal</label><input type="date" style={INP_S} value={form.training_date} onChange={e=>setForm(f=>({...f,training_date:e.target.value}))} /></div>
+            <div><label style={{ fontSize:11, color:"#64748b" }}>Jam Mulai</label><input type="time" style={INP_S} value={form.start_time} onChange={e=>setForm(f=>({...f,start_time:e.target.value}))} /></div>
+            <div><label style={{ fontSize:11, color:"#64748b" }}>Jam Selesai</label><input type="time" style={INP_S} value={form.end_time} onChange={e=>setForm(f=>({...f,end_time:e.target.value}))} /></div>
+            <div style={{ display:"flex", flexDirection:"column", justifyContent:"flex-end" }}>
+              <label style={{ fontSize:11, color:"#64748b", marginBottom:4 }}>Durasi</label>
+              <div style={{ background:"#060d1a", border:"1px solid #1e293b", borderRadius:8, padding:"7px 10px", fontSize:13, fontWeight:700, color: hoursFromTime > 0 ? "#38bdf8" : "#334155" }}>
+                {hoursFromTime > 0 ? `${hoursFromTime} jam` : "—"}
+                {hoursFromTime > remaining && <span style={{ fontSize:10, color:"#ef4444", marginLeft:4 }}>melebihi!</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* Person 1 */}
+          <div style={MINI_S}>
+            <div style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:8 }}>{form.session_type==="onsite"?"👤 Teknisi 1":"👤 Orang 1"}</div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              <div style={{ gridColumn:"1/-1" }}>
+                <label style={{ fontSize:11, color:"#64748b" }}>Nama</label>
+                {teamMembers.length > 0 && (
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:4, marginBottom:4 }}>
+                    {teamMembers.slice(0,8).map(m=>(
+                      <button key={m.id} type="button" onClick={()=>setForm(f=>({...f,person1_name:m.name}))} style={{ padding:"3px 10px", borderRadius:999, fontSize:11, cursor:"pointer", border:`1px solid ${form.person1_name===m.name?"#38bdf8":"#1e293b"}`, background:form.person1_name===m.name?"#0c2a3f":"transparent", color:form.person1_name===m.name?"#38bdf8":"#475569" }}>{m.name}</button>
+                    ))}
+                  </div>
+                )}
+                <input style={INP_S} value={form.person1_name} onChange={e=>setForm(f=>({...f,person1_name:e.target.value}))} placeholder="Nama" />
+              </div>
+              {form.session_type==="training" && (
+                <div style={{ gridColumn:"1/-1" }}>
+                  <label style={{ fontSize:11, color:"#64748b" }}>Status</label>
+                  <div style={{ display:"flex", gap:6, marginTop:4 }}>
+                    {[["internal",false,"🏢 Internal","#38bdf8","#0c2a3f"],["partner",true,"🤝 Partner","#a78bfa","#1e1040"]].map(([k,v,l,c,bg])=>(
+                      <button key={k} onClick={()=>setForm(f=>({...f,person1_is_partner:v}))} style={{ flex:1, padding:"6px", borderRadius:8, fontSize:12, fontWeight:700, cursor:"pointer", border:`1px solid ${form.person1_is_partner===v?c:"#1e293b"}`, background:form.person1_is_partner===v?bg:"transparent", color:form.person1_is_partner===v?c:"#475569" }}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div style={{ gridColumn:"1/-1", display:"flex", alignItems:"center", justifyContent:"space-between", background:"#060d1a", borderRadius:8, padding:"8px 12px" }}>
+                <span style={{ fontSize:12, color:"#64748b" }}>🚗 Kendaraan Pribadi</span>
+                <div onClick={()=>setForm(f=>({...f,person1_vehicle:!f.person1_vehicle}))} style={{ width:40, height:22, borderRadius:999, cursor:"pointer", background:form.person1_vehicle?"#10b981":"#1e293b", position:"relative", transition:"background 0.2s" }}>
+                  <div style={{ position:"absolute", top:2, left:form.person1_vehicle?20:2, width:18, height:18, borderRadius:"50%", background:"#fff", transition:"left 0.2s" }} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Person 2 toggle */}
+          <button onClick={()=>setForm(f=>({...f,has_second_person:!f.has_second_person,person2_name:"",person2_is_partner:false,person2_vehicle:false}))} style={{ padding:"7px 14px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", border:`1px solid ${form.has_second_person?"#ef444433":"#1e293b"}`, background:form.has_second_person?"#1c0a0a":"transparent", color:form.has_second_person?"#ef4444":"#64748b" }}>
+            {form.has_second_person ? "✕ Hapus Orang Kedua" : `+ Tambah ${form.session_type==="onsite"?"Teknisi":"Trainer"} Kedua`}
+          </button>
+
+          {/* Person 2 */}
+          {form.has_second_person && (
+            <div style={{ ...MINI_S, borderColor:"#1d4ed8" }}>
+              <div style={{ fontSize:12, fontWeight:600, color:"#38bdf8", marginBottom:8 }}>{form.session_type==="onsite"?"👥 Teknisi 2":"👥 Orang 2"}</div>
+              <div>
+                {teamMembers.length > 0 && (
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:4 }}>
+                    {teamMembers.filter(m=>m.name!==form.person1_name).slice(0,8).map(m=>(
+                      <button key={m.id} type="button" onClick={()=>setForm(f=>({...f,person2_name:m.name}))} style={{ padding:"3px 10px", borderRadius:999, fontSize:11, cursor:"pointer", border:`1px solid ${form.person2_name===m.name?"#38bdf8":"#1e293b"}`, background:form.person2_name===m.name?"#0c2a3f":"transparent", color:form.person2_name===m.name?"#38bdf8":"#475569" }}>{m.name}</button>
+                    ))}
+                  </div>
+                )}
+                <input style={INP_S} value={form.person2_name} onChange={e=>setForm(f=>({...f,person2_name:e.target.value}))} placeholder="Nama orang kedua" />
+                {form.session_type==="training" && (
+                  <div style={{ display:"flex", gap:6, marginTop:8 }}>
+                    {[["internal",false,"🏢 Internal","#38bdf8","#0c2a3f"],["partner",true,"🤝 Partner","#a78bfa","#1e1040"]].map(([k,v,l,c,bg])=>(
+                      <button key={k} onClick={()=>setForm(f=>({...f,person2_is_partner:v}))} style={{ flex:1, padding:"6px", borderRadius:8, fontSize:12, fontWeight:700, cursor:"pointer", border:`1px solid ${form.person2_is_partner===v?c:"#1e293b"}`, background:form.person2_is_partner===v?bg:"transparent", color:form.person2_is_partner===v?c:"#475569" }}>{l}</button>
+                    ))}
+                  </div>
+                )}
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"#060d1a", borderRadius:8, padding:"8px 12px", marginTop:8 }}>
+                  <span style={{ fontSize:12, color:"#64748b" }}>🚗 Kendaraan Pribadi</span>
+                  <div onClick={()=>setForm(f=>({...f,person2_vehicle:!f.person2_vehicle}))} style={{ width:40, height:22, borderRadius:999, cursor:"pointer", background:form.person2_vehicle?"#10b981":"#1e293b", position:"relative", transition:"background 0.2s" }}>
+                    <div style={{ position:"absolute", top:2, left:form.person2_vehicle?20:2, width:18, height:18, borderRadius:"50%", background:"#fff", transition:"left 0.2s" }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Materi & Peserta */}
+          <div>
+            <label style={{ fontSize:11, color:"#64748b" }}>Materi / Topik</label>
+            <textarea style={{ ...INP_S, resize:"vertical" }} rows={3} value={form.topics} onChange={e=>setForm(f=>({...f,topics:e.target.value}))} placeholder="Materi yang disampaikan..." />
+          </div>
+          <div>
+            <label style={{ fontSize:11, color:"#64748b" }}>Peserta</label>
+            <input style={INP_S} value={form.participants} onChange={e=>setForm(f=>({...f,participants:e.target.value}))} placeholder="Nama peserta, dipisah koma" />
+          </div>
+          <div>
+            <label style={{ fontSize:11, color:"#64748b" }}>Catatan</label>
+            <textarea style={{ ...INP_S, resize:"vertical" }} rows={2} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Catatan tambahan..." />
+          </div>
+
+          <div style={{ display:"flex", gap:10 }}>
+            <button onClick={handleSave} disabled={saving} style={{ padding:"10px 24px", borderRadius:8, border:"none", background:saving?"#1e293b":"#1d4ed8", color:saving?"#475569":"#fff", cursor:saving?"not-allowed":"pointer", fontWeight:600, fontSize:14 }}>
+              {saving?"Menyimpan...":"💾 Simpan Perubahan"}
+            </button>
+            <button onClick={onClose} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>Batal</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function TrainingTab({ project, canEdit, canTraining, canDelete, currentUser, onUpdateHours, onSave }) {
   const [subTab, setSubTab] = useState("histori");
   const [sessions, setSessions] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
+  const [editSession, setEditSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -138,6 +333,39 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
   const notify = (text, type = "success") => {
     setMsg({ text, type });
     setTimeout(() => setMsg(null), 3000);
+  };
+
+  // Check if current user can edit/delete a session
+  const canEditSession = (session) => {
+    if (canDelete) return true; // Admin can edit all
+    // Non-admin can only edit their own sessions
+    const userName = currentUser?.profile?.full_name || currentUser?.email || "";
+    const userId = currentUser?.id;
+    return session.created_by === userId ||
+      session.trainer_name === userName ||
+      session.person2_name === userName;
+  };
+
+  const handleUpdateSession = async (sessionId, updatedData) => {
+    setSaving(true);
+    try {
+      const headers = await getHdrs();
+      const res = await fetch(`${TRAIN_API}?id=eq.${sessionId}`, {
+        method: "PATCH",
+        headers: { ...headers, "Prefer": "return=representation" },
+        body: JSON.stringify(updatedData),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      // Recalculate hours
+      const updatedSessions = sessions.map(s => s.id === sessionId ? { ...s, ...updatedData } : s);
+      setSessions(updatedSessions);
+      const newUsed = updatedSessions.reduce((a, s) => a + parseFloat(s.hours_used || 0), 0);
+      await onUpdateHours(project.trainingHours.total, newUsed);
+      await onSave({ ...project, trainingHours: { ...project.trainingHours, used: newUsed } });
+      setEditSession(null);
+      notify("Sesi berhasil diupdate!");
+    } catch(e) { notify(e.message, "error"); }
+    setSaving(false);
   };
 
   const totalUsedFromHistory = sessions.reduce((a, s) => a + parseFloat(s.hours_used || 0), 0);
@@ -562,10 +790,15 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
                         </div>
                       )}
                     </div>
-                    {/* Delete button - admin only */}
-                    {canDelete && (
-                      <button onClick={() => handleDelete(s)} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #7f1d1d", background: "#1c0a0a", color: "#ef4444", cursor: "pointer", fontSize: 11, flexShrink: 0 }}>🗑</button>
-                    )}
+                    {/* Edit & Delete buttons based on ownership */}
+                    <div style={{ display:"flex", gap:6, flexShrink:0 }}>
+                      {canEditSession(s) && (
+                        <button onClick={() => setEditSession(s)} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #1d4ed8", background: "#0c1628", color: "#38bdf8", cursor: "pointer", fontSize: 11 }}>✏️</button>
+                      )}
+                      {(canDelete || canEditSession(s)) && (
+                        <button onClick={() => handleDelete(s)} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #7f1d1d", background: "#1c0a0a", color: "#ef4444", cursor: "pointer", fontSize: 11 }}>🗑</button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -616,5 +849,19 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
         </div>
       )}
     </div>
+
+      {/* Edit Session Modal */}
+      {editSession && (
+        <EditSessionModal
+          session={editSession}
+          project={project}
+          teamMembers={teamMembers}
+          currentUser={currentUser}
+          sessions={sessions}
+          onClose={() => setEditSession(null)}
+          onSave={handleUpdateSession}
+          saving={saving}
+        />
+      )}
   );
 }
