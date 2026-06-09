@@ -406,6 +406,7 @@ export default function KomisiPage({ onClose }) {
   const MINI = { background:"#0a1525", border:"1px solid #1a2744", borderRadius:10, padding:14 };
 
   return (
+    <>
     <div style={{ position:"fixed", inset:0, background:"#060d1a", zIndex:2000, overflowY:"auto", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif", color:"#e2e8f0" }}>
       <style>{`*,*::before,*::after{box-sizing:border-box}::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#0c1628}::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:3px}`}</style>
 
@@ -652,5 +653,6 @@ export default function KomisiPage({ onClose }) {
           }}
         />
       )}
+    </>
   );
 }
