@@ -162,7 +162,7 @@ export default function KomisiPage({ onClose }) {
 
       // Sheet 1 — Ringkasan per Trainer
       const ws1Rows = [
-        [`REKAP KOMISI TRAINING — ${tgl}`], [`Digenerate: ${today}`], [],
+        [`REKAP KOMISI LAYANAN TEKNIS — ${tgl}`], [`Digenerate: ${today}`], [],
         ["No", "Nama", "Status", "Sesi", "Proyek", "Total Jam", "Komisi Jam", "Komisi Kendaraan", "Total Komisi"],
       ];
       trainerList.forEach((name, i) => {
@@ -186,7 +186,7 @@ export default function KomisiPage({ onClose }) {
 
       // Sheet 2 — Detail per Sesi
       const ws2Rows = [
-        [`DETAIL SESI TRAINING — ${tgl}`], [`Digenerate: ${today}`], [],
+        [`DETAIL SESI LAYANAN — ${tgl}`], [`Digenerate: ${today}`], [],
         ["No","Tanggal","Jenis","Orang 1","Status 1","Tarif 1","Orang 2","Status 2","Tarif 2","Proyek","Peserta","Materi","Mulai","Selesai","Jam","Komisi Jam","Kendaraan","Total"],
       ];
       filtered.forEach((s, i) => {
@@ -240,7 +240,7 @@ export default function KomisiPage({ onClose }) {
             <button onClick={onClose} style={{ background:"none", border:"none", color:"#475569", cursor:"pointer", fontSize:13, marginBottom:8, display:"flex", alignItems:"center", gap:6, padding:0 }}>
               ← Kembali ke Dashboard
             </button>
-            <h1 style={{ fontSize:28, fontWeight:900, color:"#f1f5f9", margin:0 }}>💰 Rekap Komisi Training</h1>
+            <h1 style={{ fontSize:28, fontWeight:900, color:"#f1f5f9", margin:0 }}>💰 Rekap Komisi Layanan Teknis</h1>
             <div style={{ fontSize:13, color:"#475569", marginTop:6 }}>
               Training: Internal <span style={{ color:"#38bdf8", fontWeight:600 }}>Rp 100rb/jam</span> · Partner <span style={{ color:"#a78bfa", fontWeight:600 }}>Rp 150rb/jam</span> &nbsp;|&nbsp; Onsite: 1 Teknisi <span style={{ color:"#10b981", fontWeight:600 }}>Rp 100rb/jam</span> · 2 Teknisi <span style={{ color:"#f59e0b", fontWeight:600 }}>Rp 70rb/jam/orang</span> · Kendaraan <span style={{ color:"#10b981", fontWeight:600 }}>+Rp 100rb</span>
             </div>
@@ -319,13 +319,13 @@ export default function KomisiPage({ onClose }) {
         </div>
 
         {loading ? (
-          <div style={{ textAlign:"center", padding:60, color:"#475569" }}>Memuat data sesi training...</div>
+          <div style={{ textAlign:"center", padding:60, color:"#475569" }}>Memuat data sesi layanan...</div>
         ) : error ? (
           <div style={{ textAlign:"center", padding:40, color:"#ef4444" }}>⚠️ {error}</div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign:"center", padding:60, color:"#334155" }}>
             <div style={{ fontSize:36 }}>📭</div>
-            <div style={{ marginTop:12, fontSize:15 }}>Tidak ada sesi training di periode ini</div>
+            <div style={{ marginTop:12, fontSize:15 }}>Tidak ada sesi layanan di periode ini</div>
           </div>
         ) : viewMode === "ringkasan" ? (
 
