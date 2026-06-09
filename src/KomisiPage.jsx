@@ -291,7 +291,7 @@ export default function KomisiPage({ onClose }) {
   const filtered = sessions.filter(s => {
     if (dateFrom && s.training_date < dateFrom) return false;
     if (dateTo   && s.training_date > dateTo)   return false;
-    if (filterTrainer !== "all" && s.trainer_name !== filterTrainer) return false;
+    if (filterTrainer !== "all" && s.trainer_name !== filterTrainer && s.person2_name !== filterTrainer) return false;
     if (filterStatus === "internal" && s.is_partner) return false;
     if (filterStatus === "partner"  && !s.is_partner) return false;
     return true;
@@ -321,7 +321,10 @@ export default function KomisiPage({ onClose }) {
   });
 
   const trainerList = Object.keys(byTrainer).sort();
-  const allTrainers = [...new Set(sessions.map(s => s.trainer_name))].sort();
+  const allTrainers = [...new Set([
+    ...sessions.map(s => s.trainer_name),
+    ...sessions.filter(s => s.has_second_person && s.person2_name).map(s => s.person2_name)
+  ])].filter(Boolean).sort();
 
   const grandTotal = {
     jam: filtered.reduce((a, s) => a + parseFloat(s.hours_used||0), 0),
@@ -511,9 +514,9 @@ export default function KomisiPage({ onClose }) {
           <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
             {trainerList.map(name => {
               const t = byTrainer[name];
-              const isPartner = t.sessions.some(s => s.is_partner);
-              const hasVehicle = t.sessions.some(s => s.use_vehicle);
-              const vehicleCount = t.sessions.filter(s => s.use_vehicle).length;
+              const isPartner = t.isPartner;
+              const hasVehicle = t.totalKendaraan > 0;
+              const vehicleCount = t.totalKendaraan / 100000;
               return (
                 <div key={name} style={{ ...MINI, borderLeft:`3px solid ${isPartner?"#a78bfa":"#38bdf8"}` }}>
                   {/* Trainer header */}
@@ -561,7 +564,14 @@ export default function KomisiPage({ onClose }) {
                         <div key={i} style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 10px", background:"#060d1a", borderRadius:8, flexWrap:"wrap" }}>
                           <span style={{ fontSize:11, color:"#475569", minWidth:80 }}>{fmtDate(s.training_date)}</span>
                           <span style={{ fontSize:11, padding:"1px 6px", borderRadius:4, background: s.session_type==="onsite"?"#052e16":"#0c2a3f", color: s.session_type==="onsite"?"#10b981":"#38bdf8" }}>{s.session_type==="onsite"?"Onsite":"Training"}</span>
-                          <span style={{ fontSize:12, color:"#94a3b8", flex:1 }}>{s.projects?.name || "-"} — {s.topic?.split("\n")[0]}</span>
+                          <span style={{ fontSize:12, color:"#94a3b8", flex:1 }}>
+                            {s.projects?.name || "-"} — {s.topic?.split("\n")[0]}
+                          </span>
+                          {s.has_second_person && s.person2_name && (
+                            <span style={{ fontSize:10, color:"#475569", whiteSpace:"nowrap" }}>
+                              {name === s.trainer_name ? "👤 Orang 1" : "👤 Orang 2"}
+                            </span>
+                          )}
                           <span style={{ fontSize:11, color:"#f59e0b", minWidth:50 }}>{s.jam} jam</span>
                           {s.use_vehicle && <span style={{ fontSize:10, color:"#10b981" }}>🚗 +{fmtRp(TARIF_KENDARAAN)}</span>}
                           <span style={{ fontSize:12, fontWeight:700, color:"#10b981", minWidth:90, textAlign:"right" }}>{fmtRp(s.total)}</span>
