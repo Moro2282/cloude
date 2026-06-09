@@ -979,6 +979,8 @@ export default function App() {
   const [projects, setProjects] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [activePage, setActivePage] = useState("dashboard");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showLaporan, setShowLaporan] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -1137,9 +1139,6 @@ export default function App() {
     { label:"Server Aktif", val:projects.filter(p=>p.server&&p.server.active).length, color:"#10b981", icon:"🖥️" },
     { label:"Server Mau Habis", val:projects.filter(p=>p.server&&p.server.active&&p.server.endDate&&getDaysRemaining(p.server.endDate)<=30).length, color:"#ef4444", icon:"⚠️" },
   ];
-
-  const [activePage, setActivePage] = useState("dashboard");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Sidebar nav structure
   const NAV = [
