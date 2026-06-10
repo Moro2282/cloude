@@ -180,8 +180,8 @@ function ProgressBar({ value, max, color }) {
   );
 }
 
-function StageIndicator({
-  const T = getT(); stages }) {
+function StageIndicator({ stages }) {
+  const T = getT();
   const statusColor = { done: "#10b981", "in-progress": "#f59e0b", pending: "#1e293b" };
   const progress = stages.filter(s => s.status === "done").length;
   const current = stages.find(s => s.status === "in-progress") || stages.find(s => s.status === "pending");
@@ -346,8 +346,8 @@ function FilterGroup({ label, filterKey, current, onToggle, options }) {
 }
 
 // ─── OVERVIEW TAB WITH COMPANY PICKER ────────────────────────────────────────
-function OverviewTab({
-  const T = getT(); p, updateField, SaveBtn }) {
+function OverviewTab({ p, updateField, SaveBtn }) {
+  const T = getT();
   const SUPA_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
   const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
   const [companies, setCompanies] = useState([]);
@@ -427,8 +427,8 @@ function OverviewTab({
   );
 }
 
-function DetailView({
-  const T = getT(); project, onClose, onSave, onDelete, canEdit = true, canDelete = true, canTraining = true, currentUser }) {
+function DetailView({ project, onClose, onSave, onDelete, canEdit = true, canDelete = true, canTraining = true, currentUser }) {
+  const T = getT();
   const [p, setP] = useState(() => JSON.parse(JSON.stringify(project)));
   const [activeTab, setActiveTab] = useState("overview");
   const [editStage, setEditStage] = useState(null);
