@@ -8,6 +8,7 @@ import ActivityPage from "./ActivityPage";
 import MasterDataPage from "./MasterDataPage";
 import CalendarPage from "./CalendarPage";
 import RoleManagerPage from "./RoleManagerPage";
+import NewClientProjectModal from "./NewClientProjectModal";
 import { getCurrentUser, signOut, handleOAuthCallback, refreshSession } from "./auth";
 import * as XLSX from "xlsx";
 
@@ -894,7 +895,7 @@ function AddProjectModal({ onClose, onAdd }) {
   }, []);
 
   const selectCompany = (c) => {
-    setForm(x=>({...x, client:c.name, clientEmail: c.pic_phone ? "" : "", name: x.name || "" }));
+    setForm(x=>({...x, client:c.name, clientEmail: c.pic_phone||"", name: x.name || c.name }));
     setShowCompPicker(false); setCompSearch("");
   };
 
