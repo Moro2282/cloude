@@ -493,6 +493,7 @@ function ActivityFormModal({ activity, members, companies, currentUser, onClose,
   const [saving, setSaving] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [showAddCompany, setShowAddCompany] = useState(false);
+  const [newClientData, setNewClientData] = useState(null);
   const [msg, setMsg] = useState(null);
 
   const toggleMember = (m) => {
