@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { signInEmail, signInGoogle } from "./auth";
 
-const INP = { width:"100%", background:"#0c1628", border:"1px solid #1e293b", borderRadius:8, padding:"10px 14px", color:"#e2e8f0", fontSize:14, outline:"none", fontFamily:"inherit", boxSizing:"border-box" };
+const isLight = localStorage.getItem("theme")==="light";
+  const INP = { width:"100%", background:isLight?"#f8fafc":"#0c1628", border:"1px solid #1e293b", borderRadius:8, padding:"10px 14px", color:"#e2e8f0", fontSize:14, outline:"none", fontFamily:"inherit", boxSizing:"border-box" };
 
 export default function LoginPage({ onLogin }) {
   const [email, setEmail] = useState("");
@@ -25,7 +26,7 @@ export default function LoginPage({ onLogin }) {
   };
 
   return (
-    <div style={{ minHeight:"100vh", background: localStorage.getItem("theme")==="light" ? "#f1f5f9" : "#060d1a", display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif" }}>
+    <div style={{ minHeight:"100vh", background: localStorage.getItem("theme")==="light" ? "#f0f4f8" : "#060d1a", display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif" }}>
       <style>{`*,*::before,*::after{box-sizing:border-box} input::placeholder{color:#334155}`}</style>
       <div style={{ width:"100%", maxWidth:420 }}>
 
