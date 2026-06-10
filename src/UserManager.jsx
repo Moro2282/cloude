@@ -41,6 +41,7 @@ function RoleBadge({ role }) {
 export default function UserManager({ currentUser, onClose }) {
   const [users, setUsers] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ email:"", password:"", fullName:"", role:"viewer", teamMemberId:"" });
@@ -51,7 +52,23 @@ export default function UserManager({ currentUser, onClose }) {
   const [editNameTarget, setEditNameTarget] = useState(null);
   const [editNameValue, setEditNameValue] = useState("");
 
-  useEffect(() => { load(); getTeamMembers().then(setTeamMembers).catch(()=>{}); }, []);
+  useEffect(() => {
+    load();
+    getTeamMembers().then(setTeamMembers).catch(()=>{});
+    // Load roles from DB
+    const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPABASE_KEY;
+    fetch(`${SUPABASE_URL}/rest/v1/roles?order=name.asc`, {
+      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${token}` }
+    }).then(r => r.json()).then(r => setRoles(r)).catch(() => {
+      // fallback to default roles
+      setRoles([
+        { name:"admin", color:"#a78bfa" },
+        { name:"editor", color:"#38bdf8" },
+        { name:"trainer", color:"#f59e0b" },
+        { name:"viewer", color:"#64748b" },
+      ]);
+    });
+  }, []);
 
   const load = async () => {
     setLoading(true);
@@ -210,10 +227,18 @@ export default function UserManager({ currentUser, onClose }) {
               <div>
                 <label style={{ fontSize:11, color:"#64748b" }}>Role *</label>
                 <select style={{ ...INP, cursor:"pointer" }} value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}>
-                  <option value="admin">Admin — Semua akses</option>
-                  <option value="editor">Editor — Edit & tambah</option>
-                  <option value="trainer">Trainer — Input training</option>
-                  <option value="viewer">Viewer — Lihat saja</option>
+                  {roles.length > 0 ? roles.map(r => (
+                    <option key={r.name} value={r.name} style={{ color: r.color }}>
+                      {r.name.charAt(0).toUpperCase() + r.name.slice(1)}
+                    </option>
+                  )) : (
+                    <>
+                      <option value="admin">Admin</option>
+                      <option value="editor">Editor</option>
+                      <option value="trainer">Trainer</option>
+                      <option value="viewer">Viewer</option>
+                    </>
+                  )}
                 </select>
               </div>
               {teamMembers.length > 0 && (
@@ -271,11 +296,17 @@ export default function UserManager({ currentUser, onClose }) {
                     value={user.role}
                     onChange={e => handleRoleChange(user.id, e.target.value)}
                     disabled={user.id === currentUser.id}
-                    style={{ background:"#0c1628", border:"1px solid #1e293b", borderRadius:8, padding:"5px 10px", color: ROLE_CONFIG[user.role]?.color || "#e2e8f0", fontSize:12, cursor: user.id===currentUser.id?"not-allowed":"pointer", outline:"none", fontWeight:600 }}>
-                    <option value="admin">Admin</option>
-                    <option value="editor">Editor</option>
-                    <option value="trainer">Trainer</option>
-                    <option value="viewer">Viewer</option>
+                    style={{ background:"#0c1628", border:"1px solid #1e293b", borderRadius:8, padding:"5px 10px", color: ROLE_CONFIG[user.role]?.color || (roles.find(r=>r.name===user.role)?.color) || "#e2e8f0", fontSize:12, cursor: user.id===currentUser.id?"not-allowed":"pointer", outline:"none", fontWeight:600 }}>
+                    {roles.length > 0 ? roles.map(r => (
+                      <option key={r.name} value={r.name}>{r.name.charAt(0).toUpperCase() + r.name.slice(1)}</option>
+                    )) : (
+                      <>
+                        <option value="admin">Admin</option>
+                        <option value="editor">Editor</option>
+                        <option value="trainer">Trainer</option>
+                        <option value="viewer">Viewer</option>
+                      </>
+                    )}
                   </select>
                   {teamMembers.length > 0 && (
                     <button onClick={()=>setLinkTarget(user)} style={{ fontSize:10, padding:"2px 8px", borderRadius:6, border:"1px solid #334155", background:"transparent", color: user.team_member_id ? "#10b981" : "#475569", cursor:"pointer" }}>
