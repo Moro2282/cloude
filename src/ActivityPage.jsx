@@ -618,13 +618,114 @@ function ActivityDetailModal({ activity, onClose, onEdit, onDelete, isAdmin }) {
   );
 }
 
+// ─── SYNC TO SESSION MODAL ───────────────────────────────────────────────────
+function SyncToSessionModal({ activity, projects, isEdit, onClose, onConfirm }) {
+  const [selectedProject, setSelectedProject] = useState("");
+  const [projectSearch, setProjectSearch] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const filteredProjects = projects.filter(p =>
+    p.name.toLowerCase().includes(projectSearch.toLowerCase()) ||
+    (p.client||"").toLowerCase().includes(projectSearch.toLowerCase())
+  );
+
+  const handleConfirm = async () => {
+    if (!selectedProject) return;
+    setSaving(true);
+    await onConfirm(selectedProject);
+    setSaving(false);
+  };
+
+  const sessionType = activity.activity_type === "onsite" ? "Onsite IT" : "Training";
+  const memberNames = Array.isArray(activity.team_member_names)
+    ? activity.team_member_names
+    : activity.team_member_name ? [activity.team_member_name] : [];
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#00000099", zIndex:5000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={onClose}>
+      <div style={{ background:"#0f172a", border:"1px solid #1e293b", borderRadius:16, padding:28, maxWidth:480, width:"100%", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif" }} onClick={e=>e.stopPropagation()}>
+        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:16 }}>
+          <div>
+            <div style={{ fontSize:17, fontWeight:700, color:"#f1f5f9" }}>
+              {isEdit ? "🔄 Sinkronkan Sesi Layanan" : "➕ Buat Sesi Layanan Teknis?"}
+            </div>
+            <div style={{ fontSize:12, color:"#475569", marginTop:4 }}>
+              Jadwal {sessionType} ini akan {isEdit ? "memperbarui" : "membuat"} sesi di modul Layanan Teknis
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#64748b", fontSize:20, cursor:"pointer" }}>✕</button>
+        </div>
+
+        {/* Activity summary */}
+        <div style={{ background:"#0a1525", border:"1px solid #1a2744", borderRadius:10, padding:"12px 14px", marginBottom:16 }}>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:8 }}>
+            <span style={{ padding:"2px 8px", borderRadius:999, fontSize:11, fontWeight:700, background:activity.activity_type==="onsite"?"#052e16":"#0c2a3f", color:activity.activity_type==="onsite"?"#10b981":"#38bdf8" }}>
+              {activity.activity_type==="onsite"?"🔧 Onsite IT":"📚 Training"}
+            </span>
+            <span style={{ fontSize:12, color:"#475569" }}>📅 {activity.activity_date}</span>
+            {activity.start_time && <span style={{ fontSize:12, color:"#475569" }}>🕐 {activity.start_time}{activity.end_time?`–${activity.end_time}`:""}</span>}
+          </div>
+          <div style={{ fontSize:13, color:"#e2e8f0" }}>
+            👥 {memberNames.join(", ") || activity.team_member_name || "-"}
+          </div>
+          {activity.company_name && <div style={{ fontSize:12, color:"#475569", marginTop:2 }}>🏢 {activity.company_name}</div>}
+        </div>
+
+        {/* Project picker */}
+        <div style={{ marginBottom:16 }}>
+          <label style={{ fontSize:12, fontWeight:600, color:"#64748b", display:"block", marginBottom:8 }}>
+            Pilih Proyek yang Terkait *
+          </label>
+          <div style={{ position:"relative", marginBottom:8 }}>
+            <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"#475569", fontSize:12 }}>🔍</span>
+            <input style={{ width:"100%", background:"#0c1628", border:"1px solid #1e293b", borderRadius:8, padding:"8px 10px 8px 30px", color:"#e2e8f0", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }}
+              placeholder="Cari proyek..." value={projectSearch} onChange={e=>setProjectSearch(e.target.value)} autoFocus />
+          </div>
+          <div style={{ maxHeight:200, overflowY:"auto", display:"flex", flexDirection:"column", gap:4 }}>
+            {filteredProjects.map(p => (
+              <button key={p.id} onClick={()=>setSelectedProject(p.id)} style={{
+                padding:"9px 12px", borderRadius:8, border:`1px solid ${selectedProject===p.id?"#38bdf8":"#1e293b"}`,
+                background:selectedProject===p.id?"#0c2a3f":"transparent",
+                color:"#e2e8f0", cursor:"pointer", textAlign:"left", fontSize:13,
+              }}>
+                <div style={{ fontWeight:600 }}>{p.name}</div>
+                {p.client && <div style={{ fontSize:11, color:"#475569" }}>{p.client}</div>}
+              </button>
+            ))}
+            {filteredProjects.length === 0 && <div style={{ color:"#334155", fontSize:12, padding:8 }}>Proyek tidak ditemukan</div>}
+          </div>
+        </div>
+
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={handleConfirm} disabled={!selectedProject || saving} style={{
+            flex:1, padding:"10px", borderRadius:8, border:"none",
+            background:!selectedProject||saving?"#1e293b":"#059669",
+            color:!selectedProject||saving?"#475569":"#fff",
+            cursor:!selectedProject||saving?"not-allowed":"pointer", fontWeight:600, fontSize:14,
+          }}>
+            {saving?"Menyimpan...":isEdit?"🔄 Sinkronkan":"✅ Ya, Buat Sesi"}
+          </button>
+          <button onClick={onClose} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>
+            Lewati
+          </button>
+        </div>
+        <div style={{ marginTop:10, fontSize:11, color:"#334155", textAlign:"center" }}>
+          Klik "Lewati" jika tidak ingin membuat sesi layanan teknis
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 export default function ActivityPage({ onClose, currentUser, isAdmin }) {
   const [activities, setActivities] = useState([]);
   const [members, setMembers] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState(null);
+  const [syncConfirm, setSyncConfirm] = useState(null); // {activity, isEdit}
 
   const [showForm, setShowForm] = useState(false);
   const [editActivity, setEditActivity] = useState(null);
@@ -645,29 +746,113 @@ export default function ActivityPage({ onClose, currentUser, isAdmin }) {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [acts, mems, comps] = await Promise.all([
+      const [acts, mems, comps, projs] = await Promise.all([
         dbGet("team_activities", "?order=activity_date.desc,created_at.desc"),
         dbGet("team_members", "?order=name.asc&is_active=eq.true"),
         dbGet("companies", "?order=name.asc"),
+        dbGet("projects", "?select=id,name,client&order=name.asc"),
       ]);
       setActivities(acts);
       setMembers(mems);
       setCompanies(comps);
+      setProjects(projs || []);
     } catch(e) { notify(setMsg, e.message, "error"); }
     setLoading(false);
   };
 
   const handleSave = async (payload, id) => {
-    if (id) { await dbPatch("team_activities", id, payload); }
-    else { await dbPost("team_activities", payload); }
+    let savedActivity;
+    if (id) {
+      const res = await dbPatch("team_activities", id, payload);
+      savedActivity = Array.isArray(res) ? res[0] : { ...payload, id };
+    } else {
+      const res = await dbPost("team_activities", payload);
+      savedActivity = Array.isArray(res) ? res[0] : payload;
+    }
     await loadAll();
     notify(setMsg, id ? "Jadwal diupdate!" : "Jadwal berhasil dibuat!");
+
+    // Trigger sync confirm for training/onsite types
+    if (payload.activity_type === "training" || payload.activity_type === "onsite") {
+      setSyncConfirm({ activity: { ...payload, id: savedActivity?.id || id }, isEdit: !!id });
+    }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Hapus jadwal ini?")) return;
-    try { await dbDelete("team_activities", id); setDetailActivity(null); await loadAll(); notify(setMsg,"Jadwal dihapus!"); }
+    try {
+      // Also delete linked training session if exists
+      const act = activities.find(a => a.id === id);
+      if (act && (act.activity_type === "training" || act.activity_type === "onsite")) {
+        try {
+          await dbDelete("training_sessions", `source_activity_id=eq.${id}`);
+        } catch(e) { /* ignore if no linked session */ }
+      }
+      await dbDelete("team_activities", id);
+      setDetailActivity(null);
+      await loadAll();
+      notify(setMsg,"Jadwal dihapus!");
+    }
     catch(e) { notify(setMsg, e.message, "error"); }
+  };
+
+  // Sync activity to training session
+  const handleSyncToSession = async (projectId) => {
+    const act = syncConfirm.activity;
+    const isEdit = syncConfirm.isEdit;
+    const memberNames = Array.isArray(act.team_member_names) ? act.team_member_names : (act.team_member_name ? [act.team_member_name] : []);
+    const person1Name = memberNames[0] || act.team_member_name || "";
+    const person2Name = memberNames[1] || null;
+
+    const sessionPayload = {
+      project_id: projectId,
+      training_date: act.activity_date,
+      session_type: act.activity_type === "onsite" ? "onsite" : "training",
+      is_online: false,
+      trainer_name: person1Name,
+      is_partner: false,
+      use_vehicle: false,
+      has_second_person: !!person2Name,
+      person2_name: person2Name,
+      person2_is_partner: false,
+      person2_vehicle: false,
+      technician_count: person2Name ? 2 : 1,
+      topic: act.outcome || act.notes || "",
+      participants: act.company_name || "",
+      start_time: act.start_time || null,
+      end_time: act.end_time || null,
+      hours_used: (() => {
+        if (act.start_time && act.end_time) {
+          const [sh,sm] = act.start_time.split(":").map(Number);
+          const [eh,em] = act.end_time.split(":").map(Number);
+          const diff = (eh*60+em)-(sh*60+sm);
+          return diff > 0 ? Math.round(diff/60*10)/10 : 1;
+        }
+        return 1;
+      })(),
+      source_activity_id: act.id,
+      created_by: currentUser?.id || null,
+    };
+
+    try {
+      if (isEdit) {
+        // Find existing session linked to this activity and update it
+        const existing = await dbGet("training_sessions", `?source_activity_id=eq.${act.id}&limit=1`);
+        if (existing && existing.length > 0) {
+          await dbPatch("training_sessions", existing[0].id, sessionPayload);
+          notify(setMsg, "✅ Sesi layanan teknis diperbarui!");
+        } else {
+          await dbPost("training_sessions", sessionPayload);
+          notify(setMsg, "✅ Sesi layanan teknis dibuat!");
+        }
+      } else {
+        await dbPost("training_sessions", sessionPayload);
+        notify(setMsg, "✅ Sesi layanan teknis otomatis dibuat!");
+      }
+    } catch(e) {
+      notify(setMsg, "Gagal sync ke sesi layanan: " + e.message, "error");
+    }
+    setSyncConfirm(null);
   };
 
   // Filter
@@ -817,6 +1002,15 @@ export default function ActivityPage({ onClose, currentUser, isAdmin }) {
 
       {/* Modals */}
       {showForm && <ActivityFormModal activity={editActivity} members={members} companies={companies} currentUser={currentUser} onClose={()=>{setShowForm(false);setEditActivity(null);}} onSave={handleSave} />}
+      {syncConfirm && (
+        <SyncToSessionModal
+          activity={syncConfirm.activity}
+          projects={projects}
+          isEdit={syncConfirm.isEdit}
+          onClose={()=>setSyncConfirm(null)}
+          onConfirm={handleSyncToSession}
+        />
+      )}
       {detailActivity && <ActivityDetailModal activity={detailActivity} onClose={()=>setDetailActivity(null)} isAdmin={isAdmin}
         onEdit={()=>{setEditActivity(detailActivity);setDetailActivity(null);setShowForm(true);}}
         onDelete={()=>handleDelete(detailActivity.id)} />}
