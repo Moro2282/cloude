@@ -178,7 +178,7 @@ function StageIndicator({ stages }) {
           </div>
         ))}
       </div>
-      <div style={{ fontSize: 11, color: "#475569" }}>
+      <div style={{ fontSize: 11, color: textSub }}>
         {progress}/{stages.length} tahap selesai
         {current && <span style={{ color: "#f59e0b", marginLeft: 6 }}>• {current.name}</span>}
       </div>
@@ -207,17 +207,26 @@ const BTN = { padding: "10px 20px", borderRadius: 8, border: "none", background:
 // ─── PROJECT CARD ─────────────────────────────────────────────────────────────
 
 function ProjectCard({ project, onSelect }) {
+  const isDark = (localStorage.getItem("theme") || "dark") !== "light";
+  const cardBg = isDark ? "#0c1628" : "#ffffff";
+  const cardBorder = isDark ? "#1a2744" : "#d0d7e3";
+  const textPrimary = isDark ? "#f1f5f9" : "#0d1b2e";
+  const textSub = isDark ? "#475569" : "#3d5166";
+  const miniBg = isDark ? "#0a1525" : "#f8fafc";
+  const miniBorder = isDark ? "#1a2744" : "#d0d7e3";
+  const numColorBlue = isDark ? "#38bdf8" : "#1a56db";
+  const numColorGreen = isDark ? "#10b981" : "#059669";
   const daysLeft = getDaysRemaining(project.freeSupport.endDate);
   const trainPct = Math.round((project.trainingHours.used / project.trainingHours.total) * 100);
   const invPct = Math.round((project.invoiceDesigns.used / project.invoiceDesigns.total) * 100);
   return (
-    <div onClick={() => onSelect(project.id)} style={{ background: "#0c1628", border: "1px solid #1a2744", borderRadius: 16, padding: 20, cursor: "pointer", transition: "border-color 0.2s, transform 0.15s" }}
+    <div onClick={() => onSelect(project.id)} style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: 16, padding: 20, cursor: "pointer", transition: "border-color 0.2s, transform 0.15s" }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = "#2563eb"; e.currentTarget.style.transform = "translateY(-2px)"; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = "#1a2744"; e.currentTarget.style.transform = "translateY(0)"; }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#f1f5f9", marginBottom: 2 }}>{project.name}</div>
-          <div style={{ fontSize: 12, color: "#475569" }}>{project.client} · {project.clientEmail}</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: textPrimary, marginBottom: 2 }}>{project.name}</div>
+          <div style={{ fontSize: 12, color: textSub }}>{project.client} · {project.clientEmail}</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
           <SupportBadge days={daysLeft} />
@@ -362,7 +371,7 @@ function OverviewTab({ p, updateField, SaveBtn }) {
                     {filtered.map(c => (
                       <button key={c.id} type="button" onClick={() => selectCompany(c)} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${p.client === c.name ? "#10b981" : "#1e293b"}`, background: p.client === c.name ? "#052e16" : "transparent", color: "#e2e8f0", cursor: "pointer", textAlign: "left", fontSize: 13 }}>
                         <div style={{ fontWeight: 600 }}>{c.name}</div>
-                        {c.pic_name && <div style={{ fontSize: 11, color: "#475569" }}>👤 {c.pic_name} {c.pic_phone && `· ${c.pic_phone}`}</div>}
+                        {c.pic_name && <div style={{ fontSize: 11, color: textSub }}>👤 {c.pic_name} {c.pic_phone && `· ${c.pic_phone}`}</div>}
                         <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 999, background: c.status === "klien" ? "#052e16" : "#451a03", color: c.status === "klien" ? "#10b981" : "#f59e0b" }}>{c.status === "klien" ? "Klien" : "Prospek"}</span>
                       </button>
                     ))}
@@ -525,7 +534,7 @@ function DetailView({ project, onClose, onSave, onDelete, canEdit = true, canDel
             <ProgressBar value={p.invoiceDesigns.used} max={p.invoiceDesigns.total} color="#a78bfa" />
             <div style={{ marginTop: 12, display: "flex", gap: 20 }}>
               {[[p.invoiceDesigns.total-p.invoiceDesigns.used,"#a78bfa","desain tersisa"],[p.invoiceDesigns.used,"#64748b","sudah digunakan"]].map(([v,c,l]) => (
-                <div key={l}><div style={{ fontSize: 26, fontWeight: 800, color: c }}>{v}</div><div style={{ fontSize: 11, color: "#475569" }}>{l}</div></div>
+                <div key={l}><div style={{ fontSize: 26, fontWeight: 800, color: c }}>{v}</div><div style={{ fontSize: 11, color: textSub }}>{l}</div></div>
               ))}
             </div>
           </div>
@@ -545,7 +554,7 @@ function DetailView({ project, onClose, onSave, onDelete, canEdit = true, canDel
                       {stage.status==="done"?"✓ Selesai":stage.status==="in-progress"?"● Berjalan":"○ Pending"}
                     </span>
                     <span style={{ fontSize: 14, color: "#e2e8f0", fontWeight: 600 }}>{stage.name}</span>
-                    {stage.date && <span style={{ fontSize: 11, color: "#475569", marginLeft: 8 }}>{stage.date}</span>}
+                    {stage.date && <span style={{ fontSize: 11, color: textSub, marginLeft: 8 }}>{stage.date}</span>}
                   </div>
                   <button onClick={() => openStageEdit(stage)} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, border: "1px solid #334155", background: "transparent", color: "#94a3b8", cursor: "pointer" }}>Edit</button>
                 </div>
@@ -579,7 +588,7 @@ function DetailView({ project, onClose, onSave, onDelete, canEdit = true, canDel
           <div style={{ ...MINI, background: daysLeft<=0?"#1c0a0a":daysLeft<=30?"#1c0f00":"#0a1a0a", borderColor: daysLeft<=0?"#ef4444":daysLeft<=30?"#f59e0b":"#10b981", borderStyle:"solid", borderWidth:1, marginBottom:16 }}>
             <div style={{ fontSize: 38, fontWeight: 900, color: daysLeft<=0?"#ef4444":daysLeft<=30?"#f59e0b":"#10b981" }}>{daysLeft<=0?"Expired":`${daysLeft} hari`}</div>
             <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>{daysLeft<=0?"Free support sudah berakhir":"tersisa sebelum free support berakhir"}</div>
-            <div style={{ marginTop: 10, fontSize: 12, color: "#475569" }}>Mulai: {p.freeSupport.startDate} · Berakhir: {p.freeSupport.endDate} · Diperpanjang: {p.freeSupport.renewals}x</div>
+            <div style={{ marginTop: 10, fontSize: 12, color: textSub }}>Mulai: {p.freeSupport.startDate} · Berakhir: {p.freeSupport.endDate} · Diperpanjang: {p.freeSupport.renewals}x</div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
             <div style={MINI}><label style={{ fontSize: 11, color: "#64748b" }}>Tanggal Mulai Support</label><input type="date" style={INP} value={p.freeSupport.startDate} onChange={e => updateField("freeSupport.startDate", e.target.value)} /></div>
@@ -609,7 +618,7 @@ function DetailView({ project, onClose, onSave, onDelete, canEdit = true, canDel
             <div style={{ ...MINI, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "#e2e8f0" }}>Gunakan Server Kami</div>
-                <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>Aktifkan jika klien berlangganan server</div>
+                <div style={{ fontSize: 12, color: textSub, marginTop: 2 }}>Aktifkan jika klien berlangganan server</div>
               </div>
               <div onClick={() => updateField("server.active", !p.server.active)} style={{
                 width: 52, height: 28, borderRadius: 999, cursor: "pointer", transition: "background 0.2s",
@@ -1004,17 +1013,17 @@ export default function App() {
     accent:    "#38bdf8",
     accentBg:  "#0c2a3f",
   } : {
-    bg:        "#f1f5f9",
+    bg:        "#f0f4f8",
     bgCard:    "#ffffff",
     bgSidebar: "#1e293b",
-    bgInput:   "#f8fafc",
-    bgHover:   "#f1f5f9",
-    border:    "#e2e8f0",
-    borderInput:"#cbd5e1",
-    text:      "#0f172a",
-    textMuted: "#64748b",
-    textFaint: "#94a3b8",
-    accent:    "#1d4ed8",
+    bgInput:   "#ffffff",
+    bgHover:   "#e8f0fe",
+    border:    "#d0d7e3",
+    borderInput:"#b8c5d6",
+    text:      "#0d1b2e",
+    textMuted: "#3d5166",
+    textFaint: "#5a7490",
+    accent:    "#1a56db",
     accentBg:  "#dbeafe",
   };
   const [showLaporan, setShowLaporan] = useState(false);
@@ -1251,7 +1260,7 @@ export default function App() {
         <div style={{ flex:1, padding:"12px 8px", overflowY:"auto" }}>
           {visibleNav.map(group => (
             <div key={group.group} style={{ marginBottom:16 }}>
-              {!sidebarCollapsed && <div style={{ fontSize:9, fontWeight:700, color:"#334155", letterSpacing:1.5, textTransform:"uppercase", padding:"0 8px", marginBottom:4 }}>{group.group}</div>}
+              {!sidebarCollapsed && <div style={{ fontSize:9, fontWeight:700, color:"#94a3b8", letterSpacing:1.5, textTransform:"uppercase", padding:"0 8px", marginBottom:4 }}>{group.group}</div>}
               {group.items.map(item => {
                 const isActive = activePage === item.id || (activePage === "proyek_baru" && item.id === "proyek_baru");
                 return (
@@ -1284,7 +1293,7 @@ export default function App() {
         <div style={{ padding:"12px 8px", borderTop:`1px solid ${T.border}` }}>
           <button onClick={()=>setSidebarCollapsed(!sidebarCollapsed)} style={{
             width:"100%", padding:"8px", borderRadius:8, border:"none",
-            background:"transparent", color:"#334155", cursor:"pointer", fontSize:16,
+            background:"transparent", color:"#94a3b8", cursor:"pointer", fontSize:16,
             display:"flex", alignItems:"center", justifyContent: sidebarCollapsed?"center":"flex-end",
           }}>
             {sidebarCollapsed ? "›" : "‹"}
@@ -1341,7 +1350,7 @@ export default function App() {
                 <div style={{ background:"#1a0a00", border:"1px solid #f59e0b44", borderRadius:12, padding:"12px 16px", marginBottom:12, display:"flex", alignItems:"center", gap:12 }}>
                   <span style={{ fontSize:18 }}>⚠️</span>
                   <div>
-                    <div style={{ fontWeight:700, color:"#f59e0b", fontSize:13 }}>Free Support Hampir Berakhir</div>
+                    <div style={{ fontWeight:700, color:"#d97706", fontSize:13 }}>Free Support Hampir Berakhir</div>
                     <div style={{ fontSize:12, color:"#92400e" }}>{expiringSoon.map(p=>`${p.client||p.name} (${getDaysRemaining(p.freeSupport.endDate)} hari lagi)`).join(" · ")}</div>
                   </div>
                 </div>
@@ -1355,10 +1364,10 @@ export default function App() {
                   { label:"Server Aktif", val:projects.filter(p=>p.server&&p.server.active).length, color:"#10b981", icon:"🖥️" },
                   { label:"Server Mau Habis", val:projects.filter(p=>p.server&&p.server.active&&p.server.endDate&&getDaysRemaining(p.server.endDate)<=30).length, color:"#ef4444", icon:"⚠️" },
                 ].map(s=>(
-                  <div key={s.label} style={{ background:"#0c1628", border:"1px solid #1a2744", borderRadius:14, padding:"16px 18px" }}>
+                  <div key={s.label} style={{ background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:14, padding:"16px 18px" }}>
                     <div style={{ fontSize:20 }}>{s.icon}</div>
                     <div style={{ fontSize:28, fontWeight:900, color:s.color, lineHeight:1.1 }}>{s.val}</div>
-                    <div style={{ fontSize:11, color:T.textMuted, marginTop:2 }}>{s.label}</div>
+                    <div style={{ fontSize:11, color:T.textMuted, marginTop:2, fontWeight:500 }}>{s.label}</div>
                   </div>
                 ))}
               </div>
@@ -1367,9 +1376,9 @@ export default function App() {
               <div style={{ marginBottom:20 }}>
                 <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
                   <div style={{ position:"relative", flex:"1", minWidth:220 }}>
-                    <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:14, color:"#475569" }}>🔍</span>
+                    <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:14, color:T.textMuted }}>🔍</span>
                     <input type="text" placeholder="Cari nama klien..." value={search} onChange={e=>setSearch(e.target.value)}
-                      style={{ width:"100%", background:"#0c1628", border:"1px solid #1e293b", borderRadius:10, padding:"9px 12px 9px 36px", color:"#e2e8f0", fontSize:14, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }} />
+                      style={{ width:"100%", background:T.bgCard, border:"1px solid #1e293b", borderRadius:10, padding:"9px 12px 9px 36px", color:"#e2e8f0", fontSize:14, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }} />
                     {search && <span onClick={()=>setSearch("")} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", cursor:"pointer", color:"#475569", fontSize:16 }}>✕</span>}
                   </div>
                   <FilterGroup label="🛡 Support" filterKey="support" current={filters.support} onToggle={toggleFilter} options={[["active","Aktif","#10b981","#052e16"],["warning","⚠️ Hampir Habis","#f59e0b","#451a03"],["expired","Expired","#ef4444","#450a0a"]]} />
