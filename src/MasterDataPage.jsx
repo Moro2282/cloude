@@ -74,7 +74,6 @@ function TeamSection({ isAdmin }) {
   const filtered = members.filter(m => m.name.toLowerCase().includes(search.toLowerCase()) || (m.position||"").toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <>
     <div>
       {msg && <div style={{ padding:"8px 12px", borderRadius:8, marginBottom:12, fontSize:12, background:msg.type==="error"?"#1c0a0a":"#052e16", color:msg.type==="error"?"#ef4444":"#10b981", border:`1px solid ${msg.type==="error"?"#ef444433":"#10b98133"}` }}>{msg.text}</div>}
 
