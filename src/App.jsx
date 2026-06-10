@@ -129,6 +129,24 @@ async function dbDelete(id) {
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
+// ─── THEME HELPER ────────────────────────────────────────────────────────────
+function getT() {
+  const isLight = (localStorage.getItem("theme") || "dark") === "light";
+  return isLight ? {
+    bg:"#f0f4f8", bgCard:"#ffffff", bgSidebar:"#1e293b",
+    bgInput:"#ffffff", bgHover:"#e8f0fe",
+    border:"#d0d7e3", borderInput:"#b8c5d6",
+    text:"#0d1b2e", textMuted:"#3d5166", textFaint:"#5a7490",
+    accent:"#1a56db", accentBg:"#dbeafe",
+  } : {
+    bg:"#060d1a", bgCard:"#0c1628", bgSidebar:"#080f1e",
+    bgInput:"#0c1628", bgHover:"#0a1525",
+    border:"#1a2744", borderInput:"#1e293b",
+    text:"#e2e8f0", textMuted:"#475569", textFaint:"#334155",
+    accent:"#38bdf8", accentBg:"#0c2a3f",
+  };
+}
+
 function getDaysRemaining(endDate) {
   return Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24));
 }
@@ -162,7 +180,8 @@ function ProgressBar({ value, max, color }) {
   );
 }
 
-function StageIndicator({ stages }) {
+function StageIndicator({
+  const T = getT(); stages }) {
   const statusColor = { done: "#10b981", "in-progress": "#f59e0b", pending: "#1e293b" };
   const progress = stages.filter(s => s.status === "done").length;
   const current = stages.find(s => s.status === "in-progress") || stages.find(s => s.status === "pending");
@@ -178,7 +197,7 @@ function StageIndicator({ stages }) {
           </div>
         ))}
       </div>
-      <div style={{ fontSize: 11, color: textSub }}>
+      <div style={{ fontSize: 11, color: T.textMuted }}>
         {progress}/{stages.length} tahap selesai
         {current && <span style={{ color: "#f59e0b", marginLeft: 6 }}>• {current.name}</span>}
       </div>
@@ -207,15 +226,15 @@ const BTN = { padding: "10px 20px", borderRadius: 8, border: "none", background:
 // ─── PROJECT CARD ─────────────────────────────────────────────────────────────
 
 function ProjectCard({ project, onSelect }) {
-  const isDark = (localStorage.getItem("theme") || "dark") !== "light";
-  const cardBg = isDark ? "#0c1628" : "#ffffff";
-  const cardBorder = isDark ? "#1a2744" : "#d0d7e3";
-  const textPrimary = isDark ? "#f1f5f9" : "#0d1b2e";
-  const textSub = isDark ? "#475569" : "#3d5166";
-  const miniBg = isDark ? "#0a1525" : "#f8fafc";
-  const miniBorder = isDark ? "#1a2744" : "#d0d7e3";
-  const numColorBlue = isDark ? "#38bdf8" : "#1a56db";
-  const numColorGreen = isDark ? "#10b981" : "#059669";
+  const T = getT();
+  const cardBg = T.bgCard;
+  const cardBorder = T.border;
+  const textPrimary = T.text;
+  const textSub = T.textMuted;
+  const miniBg = T.bgHover;
+  const miniBorder = T.border;
+  const numColorBlue = T.accent;
+  const numColorGreen = T.text === "#e2e8f0" ? "#10b981" : "#059669";
   const daysLeft = getDaysRemaining(project.freeSupport.endDate);
   const trainPct = Math.round((project.trainingHours.used / project.trainingHours.total) * 100);
   const invPct = Math.round((project.invoiceDesigns.used / project.invoiceDesigns.total) * 100);
@@ -226,7 +245,7 @@ function ProjectCard({ project, onSelect }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
         <div>
           <div style={{ fontSize: 16, fontWeight: 700, color: textPrimary, marginBottom: 2 }}>{project.name}</div>
-          <div style={{ fontSize: 12, color: textSub }}>{project.client} · {project.clientEmail}</div>
+          <div style={{ fontSize: 12, color: T.textMuted }}>{project.client} · {project.clientEmail}</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
           <SupportBadge days={daysLeft} />
@@ -327,7 +346,8 @@ function FilterGroup({ label, filterKey, current, onToggle, options }) {
 }
 
 // ─── OVERVIEW TAB WITH COMPANY PICKER ────────────────────────────────────────
-function OverviewTab({ p, updateField, SaveBtn }) {
+function OverviewTab({
+  const T = getT(); p, updateField, SaveBtn }) {
   const SUPA_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
   const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
   const [companies, setCompanies] = useState([]);
@@ -371,7 +391,7 @@ function OverviewTab({ p, updateField, SaveBtn }) {
                     {filtered.map(c => (
                       <button key={c.id} type="button" onClick={() => selectCompany(c)} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${p.client === c.name ? "#10b981" : "#1e293b"}`, background: p.client === c.name ? "#052e16" : "transparent", color: "#e2e8f0", cursor: "pointer", textAlign: "left", fontSize: 13 }}>
                         <div style={{ fontWeight: 600 }}>{c.name}</div>
-                        {c.pic_name && <div style={{ fontSize: 11, color: textSub }}>👤 {c.pic_name} {c.pic_phone && `· ${c.pic_phone}`}</div>}
+                        {c.pic_name && <div style={{ fontSize: 11, color: T.textMuted }}>👤 {c.pic_name} {c.pic_phone && `· ${c.pic_phone}`}</div>}
                         <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 999, background: c.status === "klien" ? "#052e16" : "#451a03", color: c.status === "klien" ? "#10b981" : "#f59e0b" }}>{c.status === "klien" ? "Klien" : "Prospek"}</span>
                       </button>
                     ))}
@@ -407,7 +427,8 @@ function OverviewTab({ p, updateField, SaveBtn }) {
   );
 }
 
-function DetailView({ project, onClose, onSave, onDelete, canEdit = true, canDelete = true, canTraining = true, currentUser }) {
+function DetailView({
+  const T = getT(); project, onClose, onSave, onDelete, canEdit = true, canDelete = true, canTraining = true, currentUser }) {
   const [p, setP] = useState(() => JSON.parse(JSON.stringify(project)));
   const [activeTab, setActiveTab] = useState("overview");
   const [editStage, setEditStage] = useState(null);
@@ -534,7 +555,7 @@ function DetailView({ project, onClose, onSave, onDelete, canEdit = true, canDel
             <ProgressBar value={p.invoiceDesigns.used} max={p.invoiceDesigns.total} color="#a78bfa" />
             <div style={{ marginTop: 12, display: "flex", gap: 20 }}>
               {[[p.invoiceDesigns.total-p.invoiceDesigns.used,"#a78bfa","desain tersisa"],[p.invoiceDesigns.used,"#64748b","sudah digunakan"]].map(([v,c,l]) => (
-                <div key={l}><div style={{ fontSize: 26, fontWeight: 800, color: c }}>{v}</div><div style={{ fontSize: 11, color: textSub }}>{l}</div></div>
+                <div key={l}><div style={{ fontSize: 26, fontWeight: 800, color: c }}>{v}</div><div style={{ fontSize: 11, color: T.textMuted }}>{l}</div></div>
               ))}
             </div>
           </div>
@@ -554,7 +575,7 @@ function DetailView({ project, onClose, onSave, onDelete, canEdit = true, canDel
                       {stage.status==="done"?"✓ Selesai":stage.status==="in-progress"?"● Berjalan":"○ Pending"}
                     </span>
                     <span style={{ fontSize: 14, color: "#e2e8f0", fontWeight: 600 }}>{stage.name}</span>
-                    {stage.date && <span style={{ fontSize: 11, color: textSub, marginLeft: 8 }}>{stage.date}</span>}
+                    {stage.date && <span style={{ fontSize: 11, color: T.textMuted, marginLeft: 8 }}>{stage.date}</span>}
                   </div>
                   <button onClick={() => openStageEdit(stage)} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, border: "1px solid #334155", background: "transparent", color: "#94a3b8", cursor: "pointer" }}>Edit</button>
                 </div>
@@ -588,7 +609,7 @@ function DetailView({ project, onClose, onSave, onDelete, canEdit = true, canDel
           <div style={{ ...MINI, background: daysLeft<=0?"#1c0a0a":daysLeft<=30?"#1c0f00":"#0a1a0a", borderColor: daysLeft<=0?"#ef4444":daysLeft<=30?"#f59e0b":"#10b981", borderStyle:"solid", borderWidth:1, marginBottom:16 }}>
             <div style={{ fontSize: 38, fontWeight: 900, color: daysLeft<=0?"#ef4444":daysLeft<=30?"#f59e0b":"#10b981" }}>{daysLeft<=0?"Expired":`${daysLeft} hari`}</div>
             <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>{daysLeft<=0?"Free support sudah berakhir":"tersisa sebelum free support berakhir"}</div>
-            <div style={{ marginTop: 10, fontSize: 12, color: textSub }}>Mulai: {p.freeSupport.startDate} · Berakhir: {p.freeSupport.endDate} · Diperpanjang: {p.freeSupport.renewals}x</div>
+            <div style={{ marginTop: 10, fontSize: 12, color: T.textMuted }}>Mulai: {p.freeSupport.startDate} · Berakhir: {p.freeSupport.endDate} · Diperpanjang: {p.freeSupport.renewals}x</div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
             <div style={MINI}><label style={{ fontSize: 11, color: "#64748b" }}>Tanggal Mulai Support</label><input type="date" style={INP} value={p.freeSupport.startDate} onChange={e => updateField("freeSupport.startDate", e.target.value)} /></div>
@@ -618,7 +639,7 @@ function DetailView({ project, onClose, onSave, onDelete, canEdit = true, canDel
             <div style={{ ...MINI, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "#e2e8f0" }}>Gunakan Server Kami</div>
-                <div style={{ fontSize: 12, color: textSub, marginTop: 2 }}>Aktifkan jika klien berlangganan server</div>
+                <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>Aktifkan jika klien berlangganan server</div>
               </div>
               <div onClick={() => updateField("server.active", !p.server.active)} style={{
                 width: 52, height: 28, borderRadius: 999, cursor: "pointer", transition: "background 0.2s",
