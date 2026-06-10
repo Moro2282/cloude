@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import NewClientProjectModal from "./NewClientProjectModal";
 
 const SUPABASE_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
@@ -399,6 +400,66 @@ function QuickAddModal({ title, fields, onClose, onSave }) {
   );
 }
 
+// ─── QUICK ADD COMPANY MODAL ─────────────────────────────────────────────────
+function QuickAddCompanyModal({ onClose, onSave }) {
+  const [form, setForm] = useState({ name:"", pic_name:"", pic_phone:"", status:"prospek" });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+  const INP_Q = { width:"100%", background:"#0c1628", border:"1px solid #1e293b", borderRadius:8, padding:"8px 10px", color:"#e2e8f0", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box", marginTop:4 };
+
+  const handleSave = async () => {
+    if (!form.name.trim()) { setErr("Nama perusahaan wajib diisi"); return; }
+    setSaving(true);
+    try {
+      await onSave({ name: form.name.trim(), pic_name: form.pic_name, pic_phone: form.pic_phone }, form.status);
+    } catch(e) { setErr(e.message); setSaving(false); }
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#00000088", zIndex:4000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={onClose}>
+      <div style={{ background:"#0f172a", border:"1px solid #1e293b", borderRadius:16, padding:24, maxWidth:400, width:"100%", fontFamily:"inherit" }} onClick={e=>e.stopPropagation()}>
+        <div style={{ fontSize:15, fontWeight:700, color:"#f1f5f9", marginBottom:16 }}>🏢 Tambah Perusahaan</div>
+        {err && <div style={{ fontSize:12, color:"#ef4444", marginBottom:10 }}>⚠️ {err}</div>}
+        <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:14 }}>
+          <div>
+            <label style={{ fontSize:11, color:"#64748b" }}>Nama Perusahaan *</label>
+            <input style={INP_Q} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="PT / CV / Nama Usaha" autoFocus />
+          </div>
+          <div>
+            <label style={{ fontSize:11, color:"#64748b" }}>Nama PIC</label>
+            <input style={INP_Q} value={form.pic_name} onChange={e=>setForm(f=>({...f,pic_name:e.target.value}))} placeholder="Nama kontak" />
+          </div>
+          <div>
+            <label style={{ fontSize:11, color:"#64748b" }}>No. HP PIC</label>
+            <input style={INP_Q} value={form.pic_phone} onChange={e=>setForm(f=>({...f,pic_phone:e.target.value}))} placeholder="08xx..." />
+          </div>
+          <div>
+            <label style={{ fontSize:11, color:"#64748b", display:"block", marginBottom:6 }}>Status</label>
+            <div style={{ display:"flex", gap:8 }}>
+              {[["prospek","🎯 Prospek","#f59e0b","#451a03"],["klien","✅ Klien","#10b981","#052e16"]].map(([v,l,c,bg])=>(
+                <button key={v} onClick={()=>setForm(f=>({...f,status:v}))} style={{ flex:1, padding:"8px", borderRadius:8, fontSize:12, fontWeight:700, cursor:"pointer", border:`1px solid ${form.status===v?c:"#1e293b"}`, background:form.status===v?bg:"transparent", color:form.status===v?c:"#475569" }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            {form.status==="klien" && (
+              <div style={{ marginTop:6, fontSize:11, color:"#10b981", padding:"6px 10px", background:"#052e16", borderRadius:6 }}>
+                💡 Akan muncul form buat proyek setelah disimpan
+              </div>
+            )}
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={handleSave} disabled={saving} style={{ flex:1, padding:"9px", borderRadius:8, border:"none", background:saving?"#1e293b":"#059669", color:saving?"#475569":"#fff", cursor:saving?"not-allowed":"pointer", fontWeight:600, fontSize:13 }}>
+            {saving?"Menyimpan...":"Simpan & Pilih"}
+          </button>
+          <button onClick={onClose} style={{ padding:"9px 14px", borderRadius:8, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>Batal</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── FORM AKTIVITAS ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 function ActivityFormModal({ activity, members, companies, currentUser, onClose, onSave }) {
   const isEdit = !!activity;
@@ -568,15 +629,32 @@ function ActivityFormModal({ activity, members, companies, currentUser, onClose,
 
       {/* Quick Add Company */}
       {showAddCompany && (
-        <QuickAddModal title="+ Tambah Perusahaan" fields={[["name","Nama Perusahaan *","text"],["pic_name","Nama PIC","text"],["pic_phone","No. HP PIC","text"]]} onClose={()=>setShowAddCompany(false)}
-          onSave={async (data) => {
-            const res = await fetch(`${SUPABASE_URL}/rest/v1/companies`, { method:"POST", headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":`Bearer ${getToken()}`,"Prefer":"return=representation"}, body:JSON.stringify({...data,status:"prospek"}) });
+        <QuickAddCompanyModal
+          onClose={()=>setShowAddCompany(false)}
+          onSave={async (data, status) => {
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/companies`, {
+              method:"POST",
+              headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":`Bearer ${getToken()}`,"Prefer":"return=representation"},
+              body:JSON.stringify({...data, status: status||"prospek"})
+            });
             if (!res.ok) throw new Error(await res.text());
             const [newC] = await res.json();
             companies.push(newC);
             selectCompany(newC);
             setShowAddCompany(false);
+            // If klien, show project creation modal
+            if (status === "klien") {
+              setNewClientData({ name: data.name, pic_name: data.pic_name||"", pic_phone: data.pic_phone||"" });
+            }
           }}
+        />
+      )}
+
+      {newClientData && (
+        <NewClientProjectModal
+          company={newClientData}
+          onClose={() => setNewClientData(null)}
+          onCreated={() => { setNewClientData(null); }}
         />
       )}
     </Modal>
