@@ -37,28 +37,32 @@ export default function NewClientProjectModal({ company, onClose, onCreated }) {
     setSaving(true);
     try {
       const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPABASE_KEY;
+      // Use DB column names (matching toRow in App.jsx)
       const newProject = {
+        id: "proj-" + Date.now(),
         name: form.name.trim(),
         client: form.client,
-        clientEmail: form.clientEmail,
-        startDate: form.startDate,
-        trainingHours: { total: parseInt(form.trainTotal)||40, used: 0 },
-        invoiceDesigns: { total: parseInt(form.invTotal)||10, used: 0 },
-        freeSupport: { startDate: form.startDate, endDate: form.supportEnd, renewals: 0 },
-        server: {
-          active: form.serverActive,
-          startDate: form.serverActive ? form.serverStart : "",
-          endDate: form.serverActive ? form.serverEnd : "",
-          notes: form.serverNotes,
-        },
-        implementation: { stages: [
+        client_email: form.clientEmail,
+        start_date: form.startDate,
+        training_hours_total: parseInt(form.trainTotal)||40,
+        training_hours_used: 0,
+        invoice_designs_total: parseInt(form.invTotal)||10,
+        invoice_designs_used: 0,
+        support_start_date: form.startDate,
+        support_end_date: form.supportEnd,
+        support_renewals: 0,
+        server_active: form.serverActive,
+        server_start_date: form.serverActive ? form.serverStart : "",
+        server_end_date: form.serverActive ? form.serverEnd : "",
+        server_notes: form.serverNotes,
+        stages: [
           {id:1,name:"Analisis Kebutuhan",status:"pending",notes:"",date:""},
           {id:2,name:"Setup & Instalasi",status:"pending",notes:"",date:""},
           {id:3,name:"Training Tim",status:"pending",notes:"",date:""},
           {id:4,name:"Uji Coba (UAT)",status:"pending",notes:"",date:""},
           {id:5,name:"Go Live",status:"pending",notes:"",date:""},
           {id:6,name:"Post-Implementation Review",status:"pending",notes:"",date:""},
-        ]},
+        ],
       };
       const res = await fetch(`${SUPABASE_URL}/rest/v1/projects`, {
         method: "POST",
