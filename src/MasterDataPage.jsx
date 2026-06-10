@@ -139,7 +139,8 @@ function CompanySection({ isAdmin }) {
   const [expandId, setExpandId] = useState(null);
   const [showPicPicker, setShowPicPicker] = useState(false);
   const [picSearch, setPicSearch] = useState("");
-  const [newCompanyData, setNewCompanyData] = useState(null); // triggers project form after save
+  const [newCompanyData, setNewCompanyData] = useState(null);
+  const [showForm, setShowForm] = useState(false); // triggers project form after save
 
   useEffect(() => { load(); loadTeam(); }, []);
   const load = async () => {
@@ -182,7 +183,7 @@ function CompanySection({ isAdmin }) {
         }
       }
       setForm({ name:"", pic_name:"", pic_phone:"", address:"", status:"prospek", notes:"" });
-      setEditId(null); setShowPicPicker(false); load();
+      setEditId(null); setShowPicPicker(false); setShowForm(false); load();
     } catch(e) { notify(setMsg, e.message, "error"); }
   };
 
@@ -223,9 +224,18 @@ function CompanySection({ isAdmin }) {
         ))}
       </div>
 
-      {isAdmin && (
-        <div style={{ ...MINI, marginBottom:16 }}>
-          <div style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:10 }}>{editId ? "✏️ Edit Perusahaan" : "➕ Tambah Perusahaan"}</div>
+      {isAdmin && !editId && (
+        <div style={{ marginBottom:16 }}>
+          {!showForm ? (
+            <button onClick={()=>setShowForm(true)} style={{ padding:"9px 20px", borderRadius:10, border:"1px dashed #1d4ed8", background:"transparent", color:"#38bdf8", cursor:"pointer", fontSize:13, fontWeight:600, display:"flex", alignItems:"center", gap:8 }}>
+              ➕ Tambah Perusahaan Baru
+            </button>
+          ) : (
+            <div style={{ ...MINI, border:"1px solid #1d4ed8" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:"#38bdf8" }}>➕ Tambah Perusahaan Baru</div>
+                <button onClick={()=>{setShowForm(false);setForm({name:"",pic_name:"",pic_phone:"",address:"",status:"prospek",notes:""});}} style={{ background:"none", border:"none", color:"#64748b", cursor:"pointer", fontSize:16 }}>✕</button>
+              </div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:10 }}>
             <div style={{ gridColumn:"1/-1" }}>
               <label style={{ fontSize:11, color:"#64748b" }}>Nama Perusahaan *</label>
@@ -274,8 +284,43 @@ function CompanySection({ isAdmin }) {
             <div style={{ gridColumn:"1/-1" }}><label style={{ fontSize:11, color:"#64748b" }}>Catatan</label><textarea style={{ ...INP, resize:"vertical" }} rows={2} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Info tambahan..." /></div>
           </div>
           <div style={{ display:"flex", gap:8 }}>
-            <button onClick={handleSave} style={BTN}>{editId ? "💾 Update" : "+ Tambah"}</button>
-            {editId && <button onClick={()=>{setEditId(null);setForm({name:"",pic_name:"",pic_phone:"",address:"",status:"prospek",notes:""});}} style={{ ...BTN, background:"transparent", border:"1px solid #334155", color:"#64748b" }}>Batal</button>}
+            <button onClick={handleSave} style={BTN}>+ Tambah</button>
+            <button onClick={()=>{setShowForm(false);setForm({name:"",pic_name:"",pic_phone:"",address:"",status:"prospek",notes:""}); }} style={{ ...BTN, background:"transparent", border:"1px solid #334155", color:"#64748b" }}>Batal</button>
+          </div>
+        </div>
+          )}
+        </div>
+      )}
+
+      {/* Edit form */}
+      {isAdmin && editId && (
+        <div style={{ ...MINI, marginBottom:16, border:"1px solid #f59e0b" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:"#f59e0b" }}>✏️ Edit Perusahaan</div>
+            <button onClick={()=>{setEditId(null);setForm({name:"",pic_name:"",pic_phone:"",address:"",status:"prospek",notes:""}); }} style={{ background:"none", border:"none", color:"#64748b", cursor:"pointer", fontSize:16 }}>✕</button>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:10 }}>
+            <div style={{ gridColumn:"1/-1" }}>
+              <label style={{ fontSize:11, color:"#64748b" }}>Nama Perusahaan *</label>
+              <input style={{ ...INP, borderColor: form.name.trim() && companies.find(c => c.name.trim().toLowerCase() === form.name.trim().toLowerCase() && c.id !== editId) ? "#ef4444" : "#1e293b" }}
+                value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} />
+            </div>
+            <div><label style={{ fontSize:11, color:"#64748b" }}>Nama PIC</label><input style={INP} value={form.pic_name} onChange={e=>setForm(f=>({...f,pic_name:e.target.value}))} /></div>
+            <div><label style={{ fontSize:11, color:"#64748b" }}>No. HP PIC</label><input style={INP} value={form.pic_phone} onChange={e=>setForm(f=>({...f,pic_phone:e.target.value}))} /></div>
+            <div>
+              <label style={{ fontSize:11, color:"#64748b", display:"block", marginBottom:4 }}>Status</label>
+              <div style={{ display:"flex", gap:6 }}>
+                {[["prospek","Prospek","#f59e0b","#451a03"],["klien","Klien","#10b981","#052e16"]].map(([v,l,c,bg])=>(
+                  <button key={v} onClick={()=>setForm(f=>({...f,status:v}))} style={{ flex:1, padding:"7px", borderRadius:8, fontSize:12, fontWeight:700, cursor:"pointer", border:`1px solid ${form.status===v?c:"#1e293b"}`, background:form.status===v?bg:"transparent", color:form.status===v?c:"#475569" }}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ gridColumn:"1/-1" }}><label style={{ fontSize:11, color:"#64748b" }}>Alamat</label><input style={INP} value={form.address} onChange={e=>setForm(f=>({...f,address:e.target.value}))} /></div>
+            <div style={{ gridColumn:"1/-1" }}><label style={{ fontSize:11, color:"#64748b" }}>Catatan</label><textarea style={{ ...INP, resize:"vertical" }} rows={2} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} /></div>
+          </div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button onClick={handleSave} style={BTN}>💾 Update</button>
+            <button onClick={()=>{setEditId(null);setForm({name:"",pic_name:"",pic_phone:"",address:"",status:"prospek",notes:""});}} style={{ ...BTN, background:"transparent", border:"1px solid #334155", color:"#64748b" }}>Batal</button>
           </div>
         </div>
       )}
