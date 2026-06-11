@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { logActivity } from "./logger";
 
 const SUPABASE_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
@@ -47,6 +48,7 @@ const MODULES = [
   { key:"kalender",       label:"🗓 Kalender",        actions:["lihat"] },
   { key:"layanan_teknis", label:"🔧 Layanan Teknis",  actions:["lihat","tambah","edit","hapus"] },
   { key:"users",          label:"👥 Users",           actions:["lihat","tambah","edit","hapus"] },
+  { key:"logs",           label:"📋 Log Aktivitas",   actions:["lihat","hapus"] },
 ];
 
 const ACTION_LABELS = {
@@ -126,6 +128,7 @@ export default function RoleManagerPage({ onClose }) {
         return [...prev, { role_name: roleName, module, action, allowed: !currentVal }];
       });
       notify(setMsg, `Permission diupdate!`);
+      logActivity({ action:"edit", module:"roles", description:`Ubah permission ${roleName}: ${module}.${action}` });
     } catch(e) { notify(setMsg, e.message, "error"); }
     setSaving(false);
   };
