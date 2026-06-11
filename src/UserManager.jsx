@@ -85,6 +85,12 @@ export default function UserManager({ currentUser, onClose }) {
 
   const handleAdd = async () => {
     if (!form.email || !form.password || !form.fullName) { notify("Semua field wajib diisi", "error"); return; }
+    // Cek duplikat nama & email
+    const nameLower = form.fullName.trim().toLowerCase();
+    const dupName = users.find(u => (u.full_name||"").trim().toLowerCase() === nameLower);
+    if (dupName) { notify(`Nama "${dupName.full_name}" sudah digunakan user lain!`, "error"); return; }
+    const dupEmail = users.find(u => u.email.toLowerCase() === form.email.trim().toLowerCase());
+    if (dupEmail) { notify(`Email "${dupEmail.email}" sudah terdaftar!`, "error"); return; }
     setSaving(true);
     try {
       await signUpEmail(form.email, form.password, form.fullName, form.role);
@@ -116,6 +122,9 @@ export default function UserManager({ currentUser, onClose }) {
 
   const handleRenameUser = async (userId, newName) => {
     if (!newName.trim()) return;
+    const nameLower = newName.trim().toLowerCase();
+    const dup = users.find(u => u.id !== userId && (u.full_name||"").trim().toLowerCase() === nameLower);
+    if (dup) { notify(`Nama "${dup.full_name}" sudah digunakan user lain!`, "error"); return; }
     const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPABASE_KEY;
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}`, {
