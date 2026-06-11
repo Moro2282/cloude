@@ -237,7 +237,15 @@ function CompanyMasterModal({ onClose }) {
 function MemberPicker({ members, selectedIds, selectedNames, onToggle, onClear, onAddNew }) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
-  const filtered = members.filter(m => m.name.toLowerCase().includes(search.toLowerCase()) || (m.position||"").toLowerCase().includes(search.toLowerCase()));
+
+  // Only show unselected members, and only when there's a search query
+  const filtered = search.trim()
+    ? members.filter(m =>
+        !selectedIds.includes(m.id) &&
+        (m.name.toLowerCase().includes(search.toLowerCase()) ||
+         (m.position||"").toLowerCase().includes(search.toLowerCase()))
+      )
+    : [];
 
   return (
     <div style={MINI}>
@@ -252,7 +260,7 @@ function MemberPicker({ members, selectedIds, selectedNames, onToggle, onClear, 
           {selectedNames.map((name, i) => (
             <span key={name} style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:999, fontSize:11, fontWeight:600, background:"#0c2a3f", color:"#38bdf8", border:"1px solid #1d4ed833" }}>
               ✓ {name}
-              <span onClick={()=>onToggle({id:selectedIds[i],name})} style={{ cursor:"pointer", marginLeft:2, opacity:0.7 }}>✕</span>
+              <span onClick={()=>onToggle({id:selectedIds[i],name})} style={{ cursor:"pointer", marginLeft:2, opacity:0.7, fontSize:12 }}>✕</span>
             </span>
           ))}
         </div>
@@ -261,44 +269,58 @@ function MemberPicker({ members, selectedIds, selectedNames, onToggle, onClear, 
       {/* Search input */}
       <div style={{ position:"relative" }}>
         <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"#475569", fontSize:12 }}>🔍</span>
-        <input style={{ ...INP, marginTop:0, paddingLeft:30 }} placeholder="Cari nama tim..." value={search}
+        <input style={{ ...INP, marginTop:0, paddingLeft:30 }}
+          placeholder={selectedNames.length > 0 ? "Tambah anggota lain..." : "Ketik nama untuk mencari..."}
+          value={search}
           onChange={e=>{ setSearch(e.target.value); setOpen(true); }}
-          onFocus={()=>setOpen(true)} />
+          onFocus={()=>{ if(search.trim()) setOpen(true); }}
+        />
       </div>
 
-      {/* Dropdown results */}
-      {open && (
-        <div style={{ background:"#060d1a", border:"1px solid #1e293b", borderRadius:10, marginTop:6, maxHeight:200, overflowY:"auto" }}>
-          {filtered.length > 0 ? filtered.map(m => {
-            const selected = selectedIds.includes(m.id);
-            return (
-              <div key={m.id} onClick={()=>{ onToggle(m); setSearch(""); }} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 14px", cursor:"pointer", background:selected?"#0c2a3f":"transparent", borderBottom:"1px solid #0f172a" }}
-                onMouseEnter={e=>{ if(!selected) e.currentTarget.style.background="#0a1525"; }}
-                onMouseLeave={e=>{ if(!selected) e.currentTarget.style.background="transparent"; }}>
-                <span style={{ width:16, height:16, borderRadius:4, border:`2px solid ${selected?"#38bdf8":"#334155"}`, background:selected?"#1d4ed8":"transparent", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#fff", flexShrink:0 }}>{selected?"✓":""}</span>
-                <div>
-                  <div style={{ fontSize:13, fontWeight:600, color:"#e2e8f0" }}>{m.name}</div>
-                  {m.position && <div style={{ fontSize:11, color:"#475569" }}>{m.position}</div>}
+      {/* Dropdown - only when there is search text */}
+      {open && search.trim() && (
+        <>
+          <div style={{ position:"fixed", inset:0, zIndex:98 }} onClick={()=>{ setOpen(false); setSearch(""); }} />
+          <div style={{ position:"relative", zIndex:99 }}>
+            <div style={{ background:"#060d1a", border:"1px solid #1e293b", borderRadius:10, marginTop:4, maxHeight:220, overflowY:"auto" }}>
+              {filtered.length > 0 ? filtered.map(m => (
+                <div key={m.id} onMouseDown={()=>{ onToggle(m); setSearch(""); setOpen(false); }}
+                  style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 14px", cursor:"pointer", borderBottom:"1px solid #0f172a" }}
+                  onMouseEnter={e=>e.currentTarget.style.background="#0a1525"}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <div style={{ width:28, height:28, borderRadius:"50%", background:"linear-gradient(135deg,#1d4ed8,#7c3aed)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:700, fontSize:12, flexShrink:0 }}>
+                    {m.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:600, color:"#e2e8f0" }}>{m.name}</div>
+                    {m.position && <div style={{ fontSize:11, color:"#475569" }}>{m.position}</div>}
+                  </div>
                 </div>
-              </div>
-            );
-          }) : (
-            <div style={{ padding:"12px 14px" }}>
-              <div style={{ fontSize:12, color:"#475569", marginBottom:8 }}>"{search}" tidak ditemukan</div>
-              <button onClick={()=>{ setOpen(false); onAddNew(); }} style={{ fontSize:12, padding:"6px 14px", borderRadius:8, border:"1px solid #1d4ed8", background:"transparent", color:"#38bdf8", cursor:"pointer", fontWeight:600 }}>+ Tambah "{search}" ke Master Tim</button>
+              )) : (
+                <div style={{ padding:"12px 14px" }}>
+                  <div style={{ fontSize:12, color:"#475569", marginBottom:8 }}>"{search}" tidak ditemukan di Master Tim</div>
+                  <button onMouseDown={()=>{ setOpen(false); setSearch(""); onAddNew(); }}
+                    style={{ fontSize:12, padding:"6px 14px", borderRadius:8, border:"1px solid #1d4ed8", background:"transparent", color:"#38bdf8", cursor:"pointer", fontWeight:600 }}>
+                    + Tambah anggota tim baru
+                  </button>
+                </div>
+              )}
+              {filtered.length > 0 && (
+                <div style={{ padding:"8px 14px", borderTop:"1px solid #0f172a" }}>
+                  <button onMouseDown={()=>{ setOpen(false); setSearch(""); onAddNew(); }}
+                    style={{ fontSize:11, padding:"5px 12px", borderRadius:8, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>
+                    + Tambah anggota tim baru
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-          {filtered.length > 0 && (
-            <div style={{ padding:"8px 14px", borderTop:"1px solid #0f172a" }}>
-              <button onClick={()=>{ setOpen(false); onAddNew(); }} style={{ fontSize:11, padding:"5px 12px", borderRadius:8, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>+ Tambah anggota tim baru</button>
-            </div>
-          )}
-        </div>
+          </div>
+        </>
       )}
-      {open && <div style={{ position:"fixed", inset:0, zIndex:-1 }} onClick={()=>setOpen(false)} />}
     </div>
   );
 }
+
 
 function CompanyPicker({ companies, selectedId, selectedName, selectedStatus, onSelect, onClear, onAddNew }) {
   const [search, setSearch] = useState("");
