@@ -138,7 +138,7 @@ function TeamSection({ isAdmin }) {
 
 // ─── MASTER PERUSAHAAN ────────────────────────────────────────────────────────
 
-function CompanySection({ isAdmin }) {
+function CompanySection({ isAdmin, projects = [], onSelectProject }) {
   const [companies, setCompanies] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
   const [form, setForm] = useState({ name:"", pic_name:"", pic_phone:"", address:"", status:"prospek", notes:"" });
@@ -151,7 +151,8 @@ function CompanySection({ isAdmin }) {
   const [showPicPicker, setShowPicPicker] = useState(false);
   const [picSearch, setPicSearch] = useState("");
   const [newCompanyData, setNewCompanyData] = useState(null);
-  const [showForm, setShowForm] = useState(false); // triggers project form after save
+  const [showForm, setShowForm] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState(null); // triggers project form after save
 
   useEffect(() => { load(); loadTeam(); }, []);
   const load = async () => {
@@ -391,6 +392,90 @@ function CompanySection({ isAdmin }) {
           {filtered.length === 0 && <div style={{ textAlign:"center", color:"#334155", padding:30 }}>Tidak ada perusahaan yang cocok</div>}
         </div>
       )}
+
+      {/* Company Project Panel */}
+      {selectedCompany && (() => {
+        const compProjects = projects.filter(p =>
+          (p.client||"").trim().toLowerCase() === selectedCompany.name.trim().toLowerCase() ||
+          (p.name||"").trim().toLowerCase() === selectedCompany.name.trim().toLowerCase()
+        );
+        return (
+          <div style={{ marginTop:16, background:"#0a1525", border:`1px solid ${selectedCompany.status==="klien"?"#10b98144":"#f59e0b44"}`, borderRadius:14, padding:20 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+              <div>
+                <div style={{ fontSize:15, fontWeight:700, color:"#f1f5f9" }}>📊 Proyek — {selectedCompany.name}</div>
+                <div style={{ fontSize:12, color:"#475569", marginTop:2 }}>
+                  {compProjects.length > 0 ? `${compProjects.length} proyek ditemukan` : "Belum ada proyek terkait"}
+                </div>
+              </div>
+              <button onClick={()=>setSelectedCompany(null)} style={{ background:"none", border:"none", color:"#475569", cursor:"pointer", fontSize:18 }}>✕</button>
+            </div>
+
+            {compProjects.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"20px 0", color:"#334155" }}>
+                <div style={{ fontSize:32, marginBottom:8 }}>📂</div>
+                <div style={{ fontSize:13 }}>Belum ada proyek untuk perusahaan ini</div>
+                {onSelectProject && (
+                  <div style={{ fontSize:12, color:"#475569", marginTop:4 }}>Buat proyek baru dari Dashboard</div>
+                )}
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                {compProjects.map(p => {
+                  const daysLeft = (() => { try { return Math.ceil((new Date(p.freeSupport?.endDate||p.support_end_date) - new Date()) / (1000*60*60*24)); } catch { return null; } })();
+                  const stages = p.implementation?.stages || p.stages || [];
+                  const done = stages.filter(s=>s.status==="done").length;
+                  const total = stages.length;
+                  const pct = total > 0 ? Math.round(done/total*100) : 0;
+                  const trainHours = p.trainingHours || { total: p.training_hours_total||0, used: p.training_hours_used||0 };
+                  const trainLeft = trainHours.total - trainHours.used;
+
+                  return (
+                    <div key={p.id} onClick={()=>onSelectProject&&onSelectProject(p.id)}
+                      style={{ background:"#0c1628", border:"1px solid #1a2744", borderRadius:12, padding:14, cursor:onSelectProject?"pointer":"default", transition:"border-color 0.15s" }}
+                      onMouseEnter={e=>{ if(onSelectProject) e.currentTarget.style.borderColor="#38bdf8"; }}
+                      onMouseLeave={e=>e.currentTarget.style.borderColor="#1a2744"}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+                        <div>
+                          <div style={{ fontSize:14, fontWeight:700, color:"#f1f5f9" }}>{p.name}</div>
+                          <div style={{ fontSize:11, color:"#475569", marginTop:2 }}>Mulai: {p.startDate||p.start_date||"-"}</div>
+                        </div>
+                        {daysLeft !== null && (
+                          <span style={{ padding:"3px 10px", borderRadius:999, fontSize:11, fontWeight:700,
+                            background: daysLeft<=0?"#450a0a":daysLeft<=30?"#451a03":"#052e16",
+                            color: daysLeft<=0?"#ef4444":daysLeft<=30?"#f59e0b":"#10b981" }}>
+                            {daysLeft<=0?"Expired":`${daysLeft}h support`}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Progress implementasi */}
+                      <div style={{ marginBottom:8 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#475569", marginBottom:4 }}>
+                          <span>Implementasi</span>
+                          <span style={{ color: pct===100?"#10b981":"#f59e0b", fontWeight:600 }}>{pct}% ({done}/{total} tahap)</span>
+                        </div>
+                        <div style={{ height:5, background:"#1a2744", borderRadius:999 }}>
+                          <div style={{ height:"100%", borderRadius:999, background: pct===100?"#10b981":"#f59e0b", width:`${pct}%`, transition:"width 0.3s" }} />
+                        </div>
+                      </div>
+
+                      {/* Stats */}
+                      <div style={{ display:"flex", gap:10 }}>
+                        <span style={{ fontSize:11, color:"#475569" }}>🔧 <span style={{ color:"#38bdf8", fontWeight:600 }}>{trainLeft}</span> jam sisa</span>
+                        {(p.server?.active || p.server_active) && (
+                          <span style={{ fontSize:11, color:"#475569" }}>🖥 <span style={{ color:"#10b981", fontWeight:600 }}>Server aktif</span></span>
+                        )}
+                        {onSelectProject && <span style={{ fontSize:11, color:"#334155", marginLeft:"auto" }}>Klik untuk detail →</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
     {newCompanyData && (
       <NewClientProjectModal
@@ -404,7 +489,7 @@ function CompanySection({ isAdmin }) {
 }
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
-export default function MasterDataPage({ onClose, isAdmin }) {
+export default function MasterDataPage({ onClose, isAdmin, projects = [], onSelectProject }) {
   const [tab, setTab] = useState("perusahaan");
 
   return (
@@ -432,7 +517,7 @@ export default function MasterDataPage({ onClose, isAdmin }) {
         </div>
 
         {/* Content */}
-        {tab === "perusahaan" && <CompanySection isAdmin={isAdmin} />}
+        {tab === "perusahaan" && <CompanySection isAdmin={isAdmin} projects={projects} onSelectProject={onSelectProject} />}
         {tab === "tim" && <TeamSection isAdmin={isAdmin} />}
       </div>
     </div>
