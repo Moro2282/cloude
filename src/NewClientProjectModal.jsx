@@ -37,6 +37,12 @@ export default function NewClientProjectModal({ company, onClose, onCreated }) {
     setSaving(true);
     try {
       const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPABASE_KEY;
+      // Cek duplikat nama proyek
+      const chk = await fetch(`${SUPABASE_URL}/rest/v1/projects?name=ilike.${encodeURIComponent(form.name.trim())}&select=id,name`, { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${token}`} });
+      if (chk.ok) {
+        const existing = await chk.json();
+        if (existing.length > 0) { setErr(`Nama proyek "${existing[0].name}" sudah ada!`); setSaving(false); return; }
+      }
       // Use DB column names (matching toRow in App.jsx)
       const newProject = {
         id: "proj-" + Date.now(),
