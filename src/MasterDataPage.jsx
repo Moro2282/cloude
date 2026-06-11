@@ -58,9 +58,13 @@ function TeamSection({ isAdmin }) {
 
   const handleSave = async () => {
     if (!form.name.trim()) { notify(setMsg,"Nama wajib diisi","error"); return; }
+    // Validasi duplikat nama tim
+    const nameLower = form.name.trim().toLowerCase();
+    const duplicate = members.find(m => m.name.trim().toLowerCase() === nameLower && m.id !== editId);
+    if (duplicate) { notify(setMsg, `Nama "${duplicate.name}" sudah ada di Master Tim!`, "error"); return; }
     try {
-      if (editId) await dbPatch("team_members", editId, { name:form.name, position:form.position });
-      else await dbPost("team_members", { name:form.name, position:form.position });
+      if (editId) await dbPatch("team_members", editId, { name:form.name.trim(), position:form.position });
+      else await dbPost("team_members", { name:form.name.trim(), position:form.position });
       notify(setMsg, editId ? "Berhasil diupdate!" : "Anggota tim ditambahkan!");
       setForm({ name:"", position:"" }); setEditId(null); load();
     } catch(e) { notify(setMsg, e.message, "error"); }
@@ -82,7 +86,14 @@ function TeamSection({ isAdmin }) {
         <div style={{ ...MINI, marginBottom:16 }}>
           <div style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:10 }}>{editId ? "✏️ Edit Anggota Tim" : "➕ Tambah Anggota Tim"}</div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
-            <div><label style={{ fontSize:11, color:"#64748b" }}>Nama *</label><input style={INP} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Nama lengkap" /></div>
+            <div>
+              <label style={{ fontSize:11, color:"#64748b" }}>Nama *</label>
+              <input style={{ ...INP, borderColor: form.name.trim() && members.find(m=>m.name.trim().toLowerCase()===form.name.trim().toLowerCase()&&m.id!==editId) ? "#ef4444" : "#1e293b" }}
+                value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Nama lengkap" />
+              {form.name.trim() && members.find(m=>m.name.trim().toLowerCase()===form.name.trim().toLowerCase()&&m.id!==editId) && (
+                <div style={{ fontSize:11, color:"#ef4444", marginTop:4 }}>⚠️ Nama ini sudah ada di Master Tim</div>
+              )}
+            </div>
             <div><label style={{ fontSize:11, color:"#64748b" }}>Posisi / Jabatan</label><input style={INP} value={form.position} onChange={e=>setForm(f=>({...f,position:e.target.value}))} placeholder="Sales, Teknisi, dll" /></div>
           </div>
           <div style={{ display:"flex", gap:8 }}>
