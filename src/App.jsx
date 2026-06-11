@@ -935,6 +935,13 @@ function AddProjectModal({ onClose, onAdd }) {
 
   const submit = async () => {
     if (!form.name||!form.client) { alert("Nama proyek dan nama klien wajib diisi!"); return; }
+    // Cek duplikat nama proyek dari Supabase
+    const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPA_KEY;
+    const chk = await fetch(`${SUPA_URL}/rest/v1/projects?name=ilike.${encodeURIComponent(form.name.trim())}&select=id,name`, { headers:{"apikey":SUPA_KEY,"Authorization":`Bearer ${token}`} });
+    if (chk.ok) {
+      const existing = await chk.json();
+      if (existing.length > 0) { alert(`Nama proyek "${existing[0].name}" sudah ada! Gunakan nama yang berbeda.`); return; }
+    }
     setLoading(true);
     const end = new Date(form.startDate); end.setFullYear(end.getFullYear()+1);
     const newProj = {
