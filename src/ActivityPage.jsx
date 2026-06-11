@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { logActivity } from "./logger";
 import NewClientProjectModal from "./NewClientProjectModal";
 
 const SUPABASE_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
@@ -850,6 +851,7 @@ export default function ActivityPage({ onClose, currentUser, isAdmin }) {
     }
     await loadAll();
     notify(setMsg, id ? "Jadwal diupdate!" : "Jadwal berhasil dibuat!");
+    logActivity({ action: id?"edit":"tambah", module:"jadwal", description:`${id?"Edit":"Tambah"} jadwal: ${payload.company_name} - ${payload.activity_type}` });
 
     // Trigger sync confirm for training/onsite types
     if (payload.activity_type === "training" || payload.activity_type === "onsite") {
@@ -871,6 +873,7 @@ export default function ActivityPage({ onClose, currentUser, isAdmin }) {
       setDetailActivity(null);
       await loadAll();
       notify(setMsg,"Jadwal dihapus!");
+      logActivity({ action:"hapus", module:"jadwal", description:"Hapus jadwal aktivitas" });
     }
     catch(e) { notify(setMsg, e.message, "error"); }
   };
