@@ -8,6 +8,8 @@ import ActivityPage from "./ActivityPage";
 import MasterDataPage from "./MasterDataPage";
 import CalendarPage from "./CalendarPage";
 import RoleManagerPage from "./RoleManagerPage";
+import ActivityLogPage from "./ActivityLogPage";
+import { logActivity } from "./logger";
 import NewClientProjectModal from "./NewClientProjectModal";
 import { getCurrentUser, signOut, handleOAuthCallback, refreshSession } from "./auth";
 import * as XLSX from "xlsx";
@@ -1007,6 +1009,7 @@ export default function App() {
   const [showMaster, setShowMaster] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showRoles, setShowRoles] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
   const [projects, setProjects] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -1069,6 +1072,8 @@ export default function App() {
         if (refreshed) user = await getCurrentUser();
       }
       setCurrentUser(user);
+    if (user?.profile) localStorage.setItem("sb_profile", JSON.stringify(user.profile));
+    logActivity({ action:"login", module:"auth", description:`${user?.profile?.full_name||user?.email} login` });
       setAuthLoading(false);
       if (user) {
         dbGetAll()
@@ -1103,8 +1108,10 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    logActivity({ action:"logout", module:"auth", description:"User logout" });
     await signOut();
     setCurrentUser(null);
+    localStorage.removeItem("sb_profile");
     setProjects([]);
   };
 
@@ -1119,12 +1126,14 @@ export default function App() {
   const handleSaveProject = useCallback(async (updated) => {
     await dbUpsert(updated);
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
+    logActivity({ action:"edit", module:"proyek", description:`Edit proyek: ${updated.name}` });
   }, []);
 
   const handleAddProject = useCallback(async (proj) => {
     await dbUpsert(proj);
     setProjects(prev => [...prev, proj]);
     setShowAdd(false);
+    logActivity({ action:"tambah", module:"proyek", description:`Tambah proyek: ${proj.name}` });
   }, []);
 
   const handleDeleteProject = useCallback(async (id) => {
@@ -1236,6 +1245,7 @@ export default function App() {
       items: [
         { id:"users", icon:"👥", label:"Users", roles:["admin"] },
         { id:"roles", icon:"🔐", label:"Role & Akses", roles:["admin"] },
+        { id:"logs", icon:"📋", label:"Log Aktivitas", roles:["admin"] },
       ]
     },
   ];
@@ -1255,10 +1265,11 @@ export default function App() {
     if (activePage === "data_master") return <MasterDataPage onClose={()=>setActivePage("dashboard")} isAdmin={isAdmin} />;
     if (activePage === "users") return <UserManager currentUser={currentUser} onClose={()=>setActivePage("dashboard")} />;
     if (activePage === "roles") return <RoleManagerPage onClose={()=>setActivePage("dashboard")} />;
+    if (activePage === "logs") return <ActivityLogPage onClose={()=>setActivePage("dashboard")} />;
     return null;
   };
 
-  const fullPageRoutes = ["jadwal","laporan","komisi","kalender","data_master","users","roles"];
+  const fullPageRoutes = ["jadwal","laporan","komisi","kalender","data_master","users","roles","logs"];
   const isFullPage = fullPageRoutes.includes(activePage);
 
   return (
