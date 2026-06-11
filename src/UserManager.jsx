@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getAllUsers, signUpEmail, updateUserRole, deleteUser } from "./auth";
+import { logActivity } from "./logger";
 
 const SUPABASE_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
@@ -88,6 +89,7 @@ export default function UserManager({ currentUser, onClose }) {
     try {
       await signUpEmail(form.email, form.password, form.fullName, form.role);
       notify(`Akun ${form.email} berhasil dibuat!`);
+      logActivity({ action:"tambah", module:"users", description:`Tambah user: ${form.email} (${form.role})` });
       // Link to team member if selected
       setTimeout(async () => {
         if (form.teamMemberId) {
@@ -132,6 +134,7 @@ export default function UserManager({ currentUser, onClose }) {
       await updateUserRole(userId, newRole);
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
       notify("Role berhasil diupdate");
+      logActivity({ action:"edit", module:"users", description:`Ubah role user: ${userId.slice(0,8)} → ${newRole}` });
     } catch (e) { notify(e.message, "error"); }
   };
 
@@ -142,6 +145,7 @@ export default function UserManager({ currentUser, onClose }) {
       await deleteUser(user.id);
       setUsers(prev => prev.filter(u => u.id !== user.id));
       notify("Akun berhasil dihapus");
+      logActivity({ action:"hapus", module:"users", description:`Hapus user: ${user.email}` });
     } catch (e) { notify(e.message, "error"); }
   };
 
