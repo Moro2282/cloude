@@ -1269,7 +1269,7 @@ export default function App() {
     if (activePage === "laporan") return <LaporanModal projects={projects} onClose={()=>setActivePage("dashboard")} embedded={true} />;
     if (activePage === "komisi") return <KomisiPage onClose={()=>setActivePage("dashboard")} />;
     if (activePage === "kalender") return <CalendarPage onClose={()=>setActivePage("dashboard")} projects={projects} />;
-    if (activePage === "data_master") return <MasterDataPage onClose={()=>setActivePage("dashboard")} isAdmin={isAdmin} />;
+    if (activePage === "data_master") return <MasterDataPage onClose={()=>setActivePage("dashboard")} isAdmin={isAdmin} projects={projects} onSelectProject={(id)=>{ setSelected(id); setActivePage("dashboard"); }} />;
     if (activePage === "users") return <UserManager currentUser={currentUser} onClose={()=>setActivePage("dashboard")} />;
     if (activePage === "roles") return <RoleManagerPage onClose={()=>setActivePage("dashboard")} />;
     if (activePage === "logs") return <ActivityLogPage onClose={()=>setActivePage("dashboard")} />;
