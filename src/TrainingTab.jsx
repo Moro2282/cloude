@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { logActivity } from "./logger";
 
 const SUPABASE_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
@@ -507,6 +508,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
         project.name
       );
       notify("Sesi berhasil diupdate! Jadwal aktivitas juga diperbarui.");
+      logActivity({ action:"edit", module:"layanan_teknis", description:`Edit sesi layanan - ${sessionId.slice(0,8)}` });
     } catch(e) { notify(e.message, "error"); }
     setSaving(false);
   };
@@ -565,6 +567,7 @@ export default function TrainingTab({ project, canEdit, canTraining, canDelete, 
       setForm({ training_date: new Date().toISOString().split("T")[0], session_type: "training", is_online: false, person1_name: currentUser?.profile?.full_name || "", person1_is_partner: false, person1_vehicle: false, has_second_person: false, person2_name: "", person2_is_partner: false, person2_vehicle: false, participants: "", topics: "", start_time: "08:00", end_time: "10:00", notes: "" });
       setShowForm(false);
       notify(`Sesi training berhasil dicatat! ${hrs} jam dikurangi dari kuota. Jadwal aktivitas otomatis ditambahkan.`);
+      logActivity({ action:"tambah", module:"layanan_teknis", description:`Catat sesi ${form.session_type} - ${form.person1_name} - ${hrs} jam` });
     } catch (e) { notify(e.message, "error"); }
     setSaving(false);
   };
