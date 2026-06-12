@@ -358,9 +358,9 @@ function CompanySection({ isAdmin, projects = [], onSelectProject }) {
             const statusColor = c.status === "klien" ? "#10b981" : "#f59e0b";
             const statusBg = c.status === "klien" ? "#052e16" : "#451a03";
             return (
-              <div key={c.id} style={{ ...MINI, borderLeft:`3px solid ${statusColor}`, border:`1px solid ${selectedCompany?.id===c.id?statusColor:"#1a2744"}`, borderLeft:`3px solid ${statusColor}` }}>
+              <div key={c.id} onClick={()=>setSelectedCompany(sc=>sc?.id===c.id?null:c)} style={{ ...MINI, borderLeft:`3px solid ${statusColor}`, border:`1px solid ${selectedCompany?.id===c.id?statusColor:"#1a2744"}`, borderLeft:`3px solid ${statusColor}`, cursor:"pointer" }}>
                 {/* Row — click name to show projects, click arrow to expand details */}
-                <div style={{ display:"flex", alignItems:"center", gap:12, cursor:"pointer" }} onClick={()=>setSelectedCompany(selectedCompany?.id===c.id?null:c)}>
+                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                       <span style={{ fontSize:14, fontWeight:700, color:"#f1f5f9" }}>{c.name}</span>
