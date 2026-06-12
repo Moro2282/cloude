@@ -397,10 +397,14 @@ function CompanySection({ isAdmin, projects = [], onSelectProject }) {
 
       {/* Company Projects Panel */}
       {selectedCompany && (() => {
+        console.log("selectedCompany:", selectedCompany.name);
+        console.log("projects count:", projects.length);
+        console.log("projects clients:", projects.map(p=>p.client));
         const compProjects = projects.filter(p =>
           (p.client||"").trim().toLowerCase() === selectedCompany.name.trim().toLowerCase() ||
           (p.name||"").trim().toLowerCase() === selectedCompany.name.trim().toLowerCase()
         );
+        console.log("compProjects:", compProjects.length);
         return (
           <div style={{ marginTop:16, background:"#0a1525", border:`1px solid ${selectedCompany.status==="klien"?"#10b98144":"#f59e0b44"}`, borderRadius:14, padding:20 }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
