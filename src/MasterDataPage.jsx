@@ -388,83 +388,54 @@ function CompanySection({ isAdmin, projects = [], onSelectProject }) {
                     ))}
                   </div>
                 )}
+
+                {/* Inline project panel - shows when company is selected */}
+                {selectedCompany?.id===c.id && (() => {
+                  const cp = projects.filter(p =>
+                    (p.client||"").trim().toLowerCase() === c.name.trim().toLowerCase() ||
+                    (p.name||"").trim().toLowerCase() === c.name.trim().toLowerCase()
+                  );
+                  return (
+                    <div style={{ marginTop:12, borderTop:"1px solid #1a2744", paddingTop:12 }} onClick={e=>e.stopPropagation()}>
+                      <div style={{ fontSize:12, fontWeight:700, color:"#64748b", marginBottom:8 }}>📊 Proyek Terkait ({cp.length})</div>
+                      {cp.length === 0 ? (
+                        <div style={{ fontSize:12, color:"#334155" }}>Belum ada proyek untuk perusahaan ini</div>
+                      ) : cp.map(p => {
+                        const daysLeft = (() => { try { return Math.ceil((new Date(p.freeSupport?.endDate)-new Date())/(1000*60*60*24)); } catch { return null; } })();
+                        const stages = p.implementation?.stages||[];
+                        const done = stages.filter(s=>s.status==="done").length;
+                        const pct = stages.length > 0 ? Math.round(done/stages.length*100) : 0;
+                        const trainLeft = (p.trainingHours?.total||0)-(p.trainingHours?.used||0);
+                        return (
+                          <div key={p.id} onClick={()=>onSelectProject&&onSelectProject(p.id)}
+                            style={{ background:"#060d1a", border:"1px solid #1a2744", borderRadius:10, padding:12, marginBottom:8, cursor:onSelectProject?"pointer":"default" }}
+                            onMouseEnter={e=>{ if(onSelectProject) e.currentTarget.style.borderColor="#38bdf8"; }}
+                            onMouseLeave={e=>e.currentTarget.style.borderColor="#1a2744"}>
+                            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                              <div style={{ fontSize:13, fontWeight:700, color:"#f1f5f9" }}>{p.name}</div>
+                              {daysLeft !== null && <span style={{ padding:"2px 8px", borderRadius:999, fontSize:10, fontWeight:700, background:daysLeft<=0?"#450a0a":daysLeft<=30?"#451a03":"#052e16", color:daysLeft<=0?"#ef4444":daysLeft<=30?"#f59e0b":"#10b981" }}>{daysLeft<=0?"Expired":`${daysLeft}h support`}</span>}
+                            </div>
+                            <div style={{ marginBottom:6 }}>
+                              <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:"#475569", marginBottom:3 }}><span>Implementasi</span><span style={{ color:pct===100?"#10b981":"#f59e0b", fontWeight:600 }}>{pct}%</span></div>
+                              <div style={{ height:4, background:"#1a2744", borderRadius:999 }}><div style={{ height:"100%", borderRadius:999, background:pct===100?"#10b981":"#f59e0b", width:`${pct}%` }} /></div>
+                            </div>
+                            <div style={{ display:"flex", gap:12, fontSize:11, color:"#475569" }}>
+                              <span>🔧 <span style={{ color:"#38bdf8", fontWeight:600 }}>{trainLeft}</span> jam sisa</span>
+                              {p.server?.active && <span style={{ color:"#10b981" }}>🖥 Server aktif</span>}
+                              {onSelectProject && <span style={{ color:"#334155", marginLeft:"auto" }}>Klik buka →</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
           {filtered.length === 0 && <div style={{ textAlign:"center", color:"#334155", padding:30 }}>Tidak ada perusahaan yang cocok</div>}
         </div>
       )}
-
-      {/* Company Projects Panel */}
-      {selectedCompany && (() => {
-        console.log("selectedCompany:", selectedCompany.name);
-        console.log("projects count:", projects.length);
-        console.log("projects clients:", projects.map(p=>p.client));
-        const compProjects = projects.filter(p =>
-          (p.client||"").trim().toLowerCase() === selectedCompany.name.trim().toLowerCase() ||
-          (p.name||"").trim().toLowerCase() === selectedCompany.name.trim().toLowerCase()
-        );
-        console.log("compProjects:", compProjects.length);
-        return (
-          <div style={{ marginTop:16, background:"#0a1525", border:`1px solid ${selectedCompany.status==="klien"?"#10b98144":"#f59e0b44"}`, borderRadius:14, padding:20 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
-              <div>
-                <div style={{ fontSize:15, fontWeight:700, color:"#f1f5f9" }}>📊 Proyek — {selectedCompany.name}</div>
-                <div style={{ fontSize:12, color:"#475569", marginTop:2 }}>{compProjects.length > 0 ? `${compProjects.length} proyek` : "Belum ada proyek terkait"}</div>
-              </div>
-              <button onClick={()=>setSelectedCompany(null)} style={{ background:"none", border:"none", color:"#475569", cursor:"pointer", fontSize:18 }}>✕</button>
-            </div>
-            {compProjects.length === 0 ? (
-              <div style={{ textAlign:"center", padding:"20px 0", color:"#334155" }}>
-                <div style={{ fontSize:32, marginBottom:8 }}>📂</div>
-                <div style={{ fontSize:13 }}>Belum ada proyek untuk perusahaan ini</div>
-              </div>
-            ) : (
-              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                {compProjects.map(p => {
-                  const daysLeft = (() => { try { return Math.ceil((new Date(p.freeSupport?.endDate) - new Date())/(1000*60*60*24)); } catch { return null; } })();
-                  const stages = p.implementation?.stages || [];
-                  const done = stages.filter(s=>s.status==="done").length;
-                  const pct = stages.length > 0 ? Math.round(done/stages.length*100) : 0;
-                  const trainLeft = (p.trainingHours?.total||0)-(p.trainingHours?.used||0);
-                  return (
-                    <div key={p.id} onClick={()=>onSelectProject&&onSelectProject(p.id)}
-                      style={{ background:"#0c1628", border:"1px solid #1a2744", borderRadius:12, padding:14, cursor:onSelectProject?"pointer":"default" }}
-                      onMouseEnter={e=>{ if(onSelectProject) e.currentTarget.style.borderColor="#38bdf8"; }}
-                      onMouseLeave={e=>e.currentTarget.style.borderColor="#1a2744"}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
-                        <div>
-                          <div style={{ fontSize:14, fontWeight:700, color:"#f1f5f9" }}>{p.name}</div>
-                          <div style={{ fontSize:11, color:"#475569", marginTop:2 }}>Klien: {p.client} · Mulai: {p.startDate||"-"}</div>
-                        </div>
-                        {daysLeft !== null && (
-                          <span style={{ padding:"3px 10px", borderRadius:999, fontSize:11, fontWeight:700, background:daysLeft<=0?"#450a0a":daysLeft<=30?"#451a03":"#052e16", color:daysLeft<=0?"#ef4444":daysLeft<=30?"#f59e0b":"#10b981" }}>
-                            {daysLeft<=0?"Expired":`${daysLeft}h support`}
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ marginBottom:8 }}>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#475569", marginBottom:4 }}>
-                          <span>Implementasi</span>
-                          <span style={{ color:pct===100?"#10b981":"#f59e0b", fontWeight:600 }}>{pct}% ({done}/{stages.length} tahap)</span>
-                        </div>
-                        <div style={{ height:5, background:"#1a2744", borderRadius:999 }}>
-                          <div style={{ height:"100%", borderRadius:999, background:pct===100?"#10b981":"#f59e0b", width:`${pct}%` }} />
-                        </div>
-                      </div>
-                      <div style={{ display:"flex", gap:10, alignItems:"center" }}>
-                        <span style={{ fontSize:11, color:"#475569" }}>🔧 <span style={{ color:"#38bdf8", fontWeight:600 }}>{trainLeft}</span> jam sisa</span>
-                        {p.server?.active && <span style={{ fontSize:11, color:"#10b981" }}>🖥 Server aktif</span>}
-                        {onSelectProject && <span style={{ fontSize:11, color:"#334155", marginLeft:"auto" }}>Klik untuk buka →</span>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })()}
     </div>
     {newCompanyData && (
       <NewClientProjectModal
