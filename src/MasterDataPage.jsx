@@ -358,12 +358,14 @@ function CompanySection({ isAdmin, projects = [], onSelectProject }) {
             const statusColor = c.status === "klien" ? "#10b981" : "#f59e0b";
             const statusBg = c.status === "klien" ? "#052e16" : "#451a03";
             return (
-              <div key={c.id} style={{ ...MINI, borderLeft:`3px solid ${statusColor}`, cursor:"pointer" }} onClick={()=>setExpandId(isExpanded ? null : c.id)}>
-                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <div key={c.id} style={{ ...MINI, borderLeft:`3px solid ${statusColor}`, border:`1px solid ${selectedCompany?.id===c.id?statusColor:"#1a2744"}`, borderLeft:`3px solid ${statusColor}` }}>
+                {/* Row — click name to show projects, click arrow to expand details */}
+                <div style={{ display:"flex", alignItems:"center", gap:12, cursor:"pointer" }} onClick={()=>setSelectedCompany(selectedCompany?.id===c.id?null:c)}>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                       <span style={{ fontSize:14, fontWeight:700, color:"#f1f5f9" }}>{c.name}</span>
                       <span style={{ padding:"2px 10px", borderRadius:999, fontSize:11, fontWeight:700, background:statusBg, color:statusColor }}>{c.status === "klien" ? "✅ Klien" : "🎯 Prospek"}</span>
+                      {selectedCompany?.id===c.id && <span style={{ fontSize:10, color:statusColor }}>● lihat proyek</span>}
                     </div>
                     {c.pic_name && <div style={{ fontSize:12, color:"#475569", marginTop:2 }}>👤 {c.pic_name} {c.pic_phone && `· 📞 ${c.pic_phone}`}</div>}
                     {c.address && !isExpanded && <div style={{ fontSize:11, color:"#334155", marginTop:2 }}>📍 {c.address.slice(0,50)}{c.address.length>50?"...":""}</div>}
@@ -373,7 +375,7 @@ function CompanySection({ isAdmin, projects = [], onSelectProject }) {
                       <button onClick={e=>{e.stopPropagation();handleEdit(c);}} style={{ padding:"4px 8px", borderRadius:6, border:"1px solid #1d4ed8", background:"transparent", color:"#38bdf8", cursor:"pointer", fontSize:11 }}>✏️</button>
                       <button onClick={e=>{e.stopPropagation();handleDelete(c.id);}} style={{ padding:"4px 8px", borderRadius:6, border:"1px solid #7f1d1d", background:"transparent", color:"#ef4444", cursor:"pointer", fontSize:11 }}>🗑</button>
                     </>}
-                    <span style={{ color:"#334155", fontSize:12 }}>{isExpanded ? "▲" : "▼"}</span>
+                    <span onClick={e=>{e.stopPropagation();setExpandId(isExpanded?null:c.id);}} style={{ color:"#475569", fontSize:13, cursor:"pointer", padding:"2px 8px", borderRadius:4, background:"#0a1525" }} title="Lihat detail">{isExpanded?"▲":"▼"}</span>
                   </div>
                 </div>
                 {isExpanded && (
