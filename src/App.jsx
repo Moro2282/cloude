@@ -1186,9 +1186,10 @@ export default function App() {
       const nActs = Array.isArray(acts) ? acts.length : 0;
       if (nSess > 0 || nActs > 0) {
         const detail = [];
-        if (nSess > 0) detail.push(`${nSess} sesi layanan teknis`);
-        if (nActs > 0) detail.push(`${nActs} jadwal aktivitas`);
-        alert("Proyek \"" + (proj?.name||"") + "\" tidak dapat dihapus.\nMasih ada: " + detail.join(", ") + ".\nHapus transaksi terkait terlebih dahulu.");
+        if (nSess > 0) detail.push(nSess + " sesi layanan teknis");
+        if (nActs > 0) detail.push(nActs + " jadwal aktivitas");
+        const projName = proj?.name || "ini";
+        window.alert("Proyek [" + projName + "] tidak dapat dihapus. Masih ada: " + detail.join(", ") + ". Hapus transaksi terkait terlebih dahulu.");
         return;
       }
     } catch(e) { /* lanjut jika gagal cek */ }
