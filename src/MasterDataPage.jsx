@@ -148,12 +148,19 @@ function LinkProjectModal({ company, projects, onClose, onLinked }) {
 
   const linked = projects.filter(p => p.company_id === company.id);
   const unlinked = projects.filter(p =>
-    !p.company_id &&
+    !p.company_id && // only show projects with no company yet
     (p.name.toLowerCase().includes(search.toLowerCase()) ||
      (p.client||"").toLowerCase().includes(search.toLowerCase()))
   );
 
   const handleLink = async (projectId) => {
+    // Cek: perusahaan sudah punya proyek lain?
+    const alreadyLinked = projects.find(p => p.company_id === company.id && p.id !== projectId);
+    if (alreadyLinked) {
+      setMsg(`❌ Perusahaan ini sudah tertaut ke "${alreadyLinked.name}". Lepas tautan dulu.`);
+      setTimeout(()=>setMsg(""),4000);
+      return;
+    }
     setSaving(true);
     try {
       const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPA_KEY;
@@ -573,6 +580,13 @@ function UnlinkedProjectsPanel({ projects, companies, onLink }) {
     companies.find(c => c.name.trim().toLowerCase() === (p.client||"").trim().toLowerCase());
 
   const handleLink = async (projectId, companyId) => {
+    // Cek: perusahaan sudah punya proyek lain?
+    const companyAlreadyLinked = projects.find(p => p.company_id === companyId && p.id !== projectId);
+    if (companyAlreadyLinked) {
+      setMsg(`❌ Perusahaan ini sudah tertaut ke proyek "${companyAlreadyLinked.name}". Lepas tautan dulu sebelum menautkan ke proyek lain.`);
+      setTimeout(()=>setMsg(null), 4000);
+      return;
+    }
     setSaving(projectId);
     try {
       const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPA_KEY;
@@ -619,7 +633,8 @@ function UnlinkedProjectsPanel({ projects, companies, onLink }) {
             const suggestion = getSuggestion(p);
             const isLinking = linkingId === p.id;
             const filteredComps = companies.filter(c =>
-              c.name.toLowerCase().includes((compSearch[p.id]||"").toLowerCase())
+              c.name.toLowerCase().includes((compSearch[p.id]||"").toLowerCase()) &&
+              !projects.find(pr => pr.company_id === c.id) // hide already-linked companies
             );
             return (
               <div key={p.id} style={{ background:"#0c1628", border:"1px solid #1a2744", borderRadius:10, padding:12 }}>
