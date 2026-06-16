@@ -66,6 +66,7 @@ function toRow(p) {
     id: p.id,
     name: p.name,
     client: p.client,
+    company_id: p.company_id || null,
     client_email: p.clientEmail,
     start_date: p.startDate,
     training_hours_total: p.trainingHours.total,
@@ -88,6 +89,7 @@ function fromRow(r) {
     id: r.id,
     name: r.name,
     client: r.client,
+    company_id: r.company_id || null,
     clientEmail: r.client_email || "",
     startDate: r.start_date || "",
     trainingHours: { total: r.training_hours_total, used: r.training_hours_used },
@@ -927,7 +929,7 @@ function AddProjectModal({ onClose, onAdd }) {
   }, []);
 
   const selectCompany = (c) => {
-    setForm(x=>({...x, client:c.name, clientEmail: c.pic_phone||"", name: x.name || c.name }));
+    setForm(x=>({...x, client:c.name, company_id:c.id, clientEmail: c.pic_phone||"", name: x.name || c.name }));
     setShowCompPicker(false); setCompSearch("");
   };
 
@@ -945,7 +947,7 @@ function AddProjectModal({ onClose, onAdd }) {
     setLoading(true);
     const end = new Date(form.startDate); end.setFullYear(end.getFullYear()+1);
     const newProj = {
-      id:"proj-"+Date.now(), name:form.name, client:form.client, clientEmail:form.clientEmail, startDate:form.startDate,
+      id:"proj-"+Date.now(), name:form.name, client:form.client, company_id:form.company_id||null, clientEmail:form.clientEmail, startDate:form.startDate,
       trainingHours:{total:+form.trainTotal,used:0}, invoiceDesigns:{total:+form.invTotal,used:0},
       freeSupport:{startDate:form.startDate,endDate:end.toISOString().split("T")[0],renewals:0},
       server:{active:false,startDate:"",endDate:"",notes:""},
