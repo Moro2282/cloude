@@ -929,20 +929,34 @@ function AddProjectModal({ onClose, onAdd }) {
   }, []);
 
   const selectCompany = (c) => {
-    setForm(x=>({...x, client:c.name, company_id:c.id, clientEmail: c.pic_phone||"", name: x.name || c.name }));
+    setForm(x=>({...x, client:c.name, company_id:c.id, clientEmail: c.pic_phone||"", name: x.name || c.name, _companyHasProject: false }));
     setShowCompPicker(false); setCompSearch("");
+    // Warn if company already has a project
+    const SUPA_KEY2 = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
+    fetch(`${SUPA_URL}/rest/v1/projects?company_id=eq.${c.id}&select=id,name`,{headers:{"apikey":SUPA_KEY2}})
+      .then(r=>r.json()).then(data=>{
+        if (data.length > 0) setForm(x=>({...x, _companyHasProject: data[0].name}));
+      }).catch(()=>{});
   };
 
   const filteredComps = companies.filter(c => c.name.toLowerCase().includes(compSearch.toLowerCase()) || (c.pic_name||"").toLowerCase().includes(compSearch.toLowerCase()));
 
   const submit = async () => {
     if (!form.name||!form.client) { alert("Nama proyek dan nama klien wajib diisi!"); return; }
-    // Cek duplikat nama proyek dari Supabase
     const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPA_KEY;
+    // Cek duplikat nama proyek
     const chk = await fetch(`${SUPA_URL}/rest/v1/projects?name=ilike.${encodeURIComponent(form.name.trim())}&select=id,name`, { headers:{"apikey":SUPA_KEY,"Authorization":`Bearer ${token}`} });
     if (chk.ok) {
       const existing = await chk.json();
-      if (existing.length > 0) { alert(`Nama proyek "${existing[0].name}" sudah ada! Gunakan nama yang berbeda.`); return; }
+      if (existing.length > 0) { alert(`Nama proyek "${existing[0].name}" sudah ada!`); return; }
+    }
+    // Cek one-to-one: perusahaan sudah punya proyek lain?
+    if (form.company_id) {
+      const chk2 = await fetch(`${SUPA_URL}/rest/v1/projects?company_id=eq.${form.company_id}&select=id,name`, { headers:{"apikey":SUPA_KEY,"Authorization":`Bearer ${token}`} });
+      if (chk2.ok) {
+        const existing2 = await chk2.json();
+        if (existing2.length > 0) { alert(`Perusahaan ini sudah tertaut ke proyek "${existing2[0].name}". Satu perusahaan hanya boleh satu proyek.`); return; }
+      }
     }
     setLoading(true);
     const end = new Date(form.startDate); end.setFullYear(end.getFullYear()+1);
