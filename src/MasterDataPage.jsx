@@ -732,3 +732,55 @@ function UnlinkedProjectsPanel({ projects, companies, onLink }) {
   );
 }
 
+// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
+export default function MasterDataPage({ onClose, isAdmin, projects = [], onSelectProject }) {
+  const [tab, setTab] = useState("perusahaan");
+  const [allCompanies, setAllCompanies] = useState([]);
+  const SUPA_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
+  const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
+
+  useEffect(() => {
+    const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPA_KEY;
+    fetch(`${SUPA_URL}/rest/v1/companies?order=name.asc&select=id,name,status`, {
+      headers: { "apikey": SUPA_KEY, "Authorization": `Bearer ${token}` }
+    }).then(r => r.json()).then(setAllCompanies).catch(() => {});
+  }, []);
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#060d1a", zIndex:2000, overflowY:"auto", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif", color:"#e2e8f0" }}>
+      <style>{`*,*::before,*::after{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#0c1628}::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:3px}`}</style>
+      <div style={{ maxWidth:1100, margin:"0 auto", padding:"28px 20px" }}>
+
+        {/* Header */}
+        <div style={{ marginBottom:24 }}>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#475569", cursor:"pointer", fontSize:13, marginBottom:8, padding:0 }}>← Kembali ke Dashboard</button>
+          <h1 style={{ fontSize:28, fontWeight:900, color:"#f1f5f9", margin:0 }}>🗂 Data Master</h1>
+          <div style={{ fontSize:13, color:"#475569", marginTop:4 }}>Kelola data tim dan perusahaan yang digunakan di seluruh aplikasi</div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display:"flex", gap:8, marginBottom:24 }}>
+          {[["perusahaan","🏢 Data Perusahaan"],["tim","👥 Data Tim"],["tautan","🔗 Tautan Proyek"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setTab(v)} style={{
+              padding:"9px 20px", borderRadius:10, border:"none", cursor:"pointer", fontSize:13, fontWeight:700,
+              background: tab===v ? "#1d4ed8" : "#0c1628",
+              color: tab===v ? "#fff" : "#475569",
+              transition:"all 0.2s",
+            }}>{l}</button>
+          ))}
+        </div>
+
+        {/* Content */}
+        {tab === "perusahaan" && <CompanySection isAdmin={isAdmin} projects={projects} onSelectProject={onSelectProject} />}
+        {tab === "tim" && <TeamSection isAdmin={isAdmin} />}
+        {tab === "tautan" && (
+          <UnlinkedProjectsPanel
+            projects={projects}
+            companies={allCompanies}
+            onLink={(projectId, companyId) => { window.location.reload(); }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
