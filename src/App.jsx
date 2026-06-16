@@ -131,6 +131,20 @@ async function dbDelete(id) {
   if (!res.ok) throw new Error(await res.text());
 }
 
+async function checkProjectHistory(projectId) {
+  // Check training_sessions and team_activities for this project
+  const BASE = "https://kfhbrodsgurvrsfpecwq.supabase.co/rest/v1";
+  const H = HEADERS;
+  const [sessions, activities] = await Promise.all([
+    fetch(`${BASE}/training_sessions?project_id=eq.${projectId}&select=id&limit=1`, {headers:H}).then(r=>r.json()).catch(()=>[]),
+    fetch(`${BASE}/team_activities?project_id=eq.${projectId}&select=id&limit=1`, {headers:H}).then(r=>r.json()).catch(()=>[]),
+  ]);
+  return {
+    sessions: Array.isArray(sessions) ? sessions.length : 0,
+    activities: Array.isArray(activities) ? activities.length : 0,
+  };
+}
+
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 // ─── THEME HELPER ────────────────────────────────────────────────────────────
@@ -1160,10 +1174,33 @@ export default function App() {
   }, []);
 
   const handleDeleteProject = useCallback(async (id) => {
+    const proj = projects.find(p => p.id === id);
+    // Cek histori transaksi sebelum hapus
+    try {
+      const BASE = "https://kfhbrodsgurvrsfpecwq.supabase.co/rest/v1";
+      const [sess, acts] = await Promise.all([
+        fetch(`${BASE}/training_sessions?project_id=eq.${id}&select=id&limit=1`, {headers:HEADERS}).then(r=>r.json()).catch(()=>[]),
+        fetch(`${BASE}/team_activities?project_id=eq.${id}&select=id&limit=1`, {headers:HEADERS}).then(r=>r.json()).catch(()=>[]),
+      ]);
+      const nSess = Array.isArray(sess) ? sess.length : 0;
+      const nActs = Array.isArray(acts) ? acts.length : 0;
+      if (nSess > 0 || nActs > 0) {
+        const detail = [];
+        if (nSess > 0) detail.push(`${nSess} sesi layanan teknis`);
+        if (nActs > 0) detail.push(`${nActs} jadwal aktivitas`);
+        alert(`❌ Proyek "${proj?.name}" tidak dapat dihapus karena masih ada:
+• ${detail.join('
+• ')}
+
+Hapus semua transaksi terkait terlebih dahulu.`);
+        return;
+      }
+    } catch(e) { /* lanjut jika gagal cek */ }
+    if (!window.confirm(`Hapus proyek "${proj?.name}"? Tindakan ini tidak bisa dibatalkan.`)) return;
     await dbDelete(id);
     setProjects(prev => prev.filter(p => p.id !== id));
     setSelected(null);
-  }, []);
+  }, [projects]);
 
   const selectedProject = projects.find(p => p.id === selected);
   const expiringSoon = projects.filter(p => { const d=getDaysRemaining(p.freeSupport.endDate); return d>=0&&d<=30; });
