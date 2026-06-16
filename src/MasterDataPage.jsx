@@ -560,32 +560,42 @@ function CompanySection({ isAdmin, projects = [], onSelectProject }) {
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 // ─── UNLINKED PROJECTS PANEL ─────────────────────────────────────────────────
 function UnlinkedProjectsPanel({ projects, companies, onLink }) {
+  const SUPA_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
+  const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
   const [search, setSearch] = useState("");
-  const [linkingId, setLinkingId] = useState(null);
+  const [filter, setFilter] = useState("all"); // all | linked | unlinked
+  const [editingId, setEditingId] = useState(null);
   const [compSearch, setCompSearch] = useState({});
   const [saving, setSaving] = useState(null);
   const [msg, setMsg] = useState(null);
 
-  const SUPA_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
-  const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
+  const linkedCount = projects.filter(p=>p.company_id).length;
+  const unlinkedCount = projects.filter(p=>!p.company_id).length;
 
-  const unlinked = projects.filter(p =>
-    !p.company_id &&
-    (p.name.toLowerCase().includes(search.toLowerCase()) ||
-     (p.client||"").toLowerCase().includes(search.toLowerCase()))
-  );
+  const filtered = projects.filter(p => {
+    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.client||"").toLowerCase().includes(search.toLowerCase());
+    if (filter === "linked") return matchSearch && p.company_id;
+    if (filter === "unlinked") return matchSearch && !p.company_id;
+    return matchSearch;
+  });
 
-  // Auto-suggest company by matching client name
-  const getSuggestion = (p) =>
-    companies.find(c => c.name.trim().toLowerCase() === (p.client||"").trim().toLowerCase());
+  const getCompany = (companyId) => companies.find(c=>c.id===companyId);
 
-  const handleLink = async (projectId, companyId) => {
-    // Cek: perusahaan sudah punya proyek lain?
-    const companyAlreadyLinked = projects.find(p => p.company_id === companyId && p.id !== projectId);
-    if (companyAlreadyLinked) {
-      setMsg(`❌ Perusahaan ini sudah tertaut ke proyek "${companyAlreadyLinked.name}". Lepas tautan dulu sebelum menautkan ke proyek lain.`);
-      setTimeout(()=>setMsg(null), 4000);
-      return;
+  const getSuggestion = (p) => !p.company_id &&
+    companies.find(c =>
+      c.name.trim().toLowerCase() === (p.client||"").trim().toLowerCase() &&
+      !projects.find(pr=>pr.company_id===c.id)
+    );
+
+  const handleSaveLink = async (projectId, companyId) => {
+    // companyId === null means unlink
+    if (companyId !== null) {
+      const alreadyLinked = projects.find(p=>p.company_id===companyId && p.id!==projectId);
+      if (alreadyLinked) {
+        setMsg({ text:`❌ Perusahaan sudah tertaut ke "${alreadyLinked.name}"`, type:"error" });
+        setTimeout(()=>setMsg(null),4000); return;
+      }
     }
     setSaving(projectId);
     try {
@@ -597,151 +607,128 @@ function UnlinkedProjectsPanel({ projects, companies, onLink }) {
       });
       if (!res.ok) throw new Error(await res.text());
       onLink(projectId, companyId);
-      setLinkingId(null);
-      setMsg("Berhasil ditautkan!");
-      setTimeout(()=>setMsg(null), 2000);
-    } catch(e) { setMsg("Gagal: "+e.message); }
+      setEditingId(null);
+      setMsg({ text: companyId ? "✅ Tautan berhasil diubah!" : "✅ Tautan berhasil dilepas!", type:"success" });
+      setTimeout(()=>setMsg(null),2500);
+    } catch(e) { setMsg({ text:"Gagal: "+e.message, type:"error" }); }
     setSaving(null);
   };
 
   return (
-    <div style={{ marginTop:24, background:"#0a1525", border:"1px solid #f59e0b44", borderRadius:14, padding:20 }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16, flexWrap:"wrap", gap:10 }}>
-        <div>
-          <div style={{ fontSize:14, fontWeight:700, color:"#f59e0b" }}>⚠️ Proyek Belum Tertaut ke Perusahaan</div>
-          <div style={{ fontSize:12, color:"#475569", marginTop:2 }}>
-            {projects.filter(p=>!p.company_id).length} dari {projects.length} proyek belum tertaut
+    <div style={{ marginTop:24 }}>
+      {/* Stats */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:16 }}>
+        {[[projects.length,"Total Proyek","#38bdf8"],[linkedCount,"Sudah Tertaut","#10b981"],[unlinkedCount,"Belum Tertaut",unlinkedCount>0?"#f59e0b":"#10b981"]].map(([v,l,c])=>(
+          <div key={l} style={{ background:"#0a1525", border:"1px solid #1a2744", borderRadius:10, padding:"12px 14px" }}>
+            <div style={{ fontSize:22, fontWeight:800, color:c }}>{v}</div>
+            <div style={{ fontSize:11, color:"#475569", marginTop:2 }}>{l}</div>
           </div>
-        </div>
-        <div style={{ position:"relative" }}>
-          <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:12, color:"#475569" }}>🔍</span>
-          <input style={{ background:"#0c1628", border:"1px solid #1e293b", borderRadius:8, padding:"7px 10px 7px 30px", color:"#e2e8f0", fontSize:12, outline:"none", fontFamily:"inherit" }}
-            placeholder="Cari proyek..." value={search} onChange={e=>setSearch(e.target.value)} />
-        </div>
+        ))}
       </div>
 
-      {msg && <div style={{ padding:"8px 12px", borderRadius:8, marginBottom:12, fontSize:12, background:"#052e16", color:"#10b981" }}>{msg}</div>}
+      {msg && <div style={{ padding:"10px 14px", borderRadius:10, marginBottom:12, fontSize:13, background:msg.type==="error"?"#1c0a0a":"#052e16", color:msg.type==="error"?"#ef4444":"#10b981", border:`1px solid ${msg.type==="error"?"#ef444433":"#10b98133"}` }}>{msg.text}</div>}
 
-      {unlinked.length === 0 ? (
-        <div style={{ textAlign:"center", padding:"24px 0", color:"#10b981" }}>
-          <div style={{ fontSize:32 }}>✅</div>
-          <div style={{ fontSize:14, fontWeight:600, marginTop:8 }}>Semua proyek sudah tertaut!</div>
-        </div>
-      ) : (
-        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-          {unlinked.map(p => {
-            const suggestion = getSuggestion(p);
-            const isLinking = linkingId === p.id;
-            const filteredComps = companies.filter(c =>
-              c.name.toLowerCase().includes((compSearch[p.id]||"").toLowerCase()) &&
-              !projects.find(pr => pr.company_id === c.id) // hide already-linked companies
-            );
-            return (
-              <div key={p.id} style={{ background:"#0c1628", border:"1px solid #1a2744", borderRadius:10, padding:12 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:10 }}>
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontSize:13, fontWeight:700, color:"#f1f5f9" }}>{p.name}</div>
-                    <div style={{ fontSize:11, color:"#475569", marginTop:2 }}>
-                      Klien: <span style={{ color:"#94a3b8" }}>{p.client||"-"}</span>
-                    </div>
-                    {suggestion && !isLinking && (
-                      <div style={{ marginTop:6, display:"flex", alignItems:"center", gap:8 }}>
-                        <span style={{ fontSize:11, color:"#f59e0b" }}>💡 Cocok dengan:</span>
-                        <button onClick={()=>handleLink(p.id, suggestion.id)} disabled={saving===p.id}
-                          style={{ padding:"3px 10px", borderRadius:6, border:"none", background:"#451a03", color:"#f59e0b", cursor:"pointer", fontSize:11, fontWeight:600 }}>
-                          {saving===p.id?"...":"Tautkan ke "+suggestion.name}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <button onClick={()=>setLinkingId(isLinking?null:p.id)}
-                    style={{ padding:"5px 12px", borderRadius:8, border:`1px solid ${isLinking?"#ef4444":"#0d9488"}`, background:"transparent", color:isLinking?"#ef4444":"#14b8a6", cursor:"pointer", fontSize:11, fontWeight:600, flexShrink:0 }}>
-                    {isLinking?"✕ Batal":"🔗 Pilih Perusahaan"}
-                  </button>
-                </div>
-
-                {isLinking && (
-                  <div style={{ marginTop:10, borderTop:"1px solid #1a2744", paddingTop:10 }}>
-                    <div style={{ position:"relative", marginBottom:8 }}>
-                      <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:12, color:"#475569" }}>🔍</span>
-                      <input autoFocus style={{ width:"100%", background:"#060d1a", border:"1px solid #1e293b", borderRadius:8, padding:"7px 10px 7px 30px", color:"#e2e8f0", fontSize:12, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }}
-                        placeholder="Cari perusahaan..." value={compSearch[p.id]||""}
-                        onChange={e=>setCompSearch(prev=>({...prev,[p.id]:e.target.value}))} />
-                    </div>
-                    <div style={{ maxHeight:160, overflowY:"auto", display:"flex", flexDirection:"column", gap:4 }}>
-                      {filteredComps.slice(0,20).map(c => (
-                        <button key={c.id} onClick={()=>handleLink(p.id, c.id)} disabled={saving===p.id}
-                          style={{ padding:"7px 10px", borderRadius:8, border:"1px solid #1a2744", background:"#0a1525", color:"#e2e8f0", cursor:"pointer", textAlign:"left", fontSize:12, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                          <div>
-                            <span style={{ fontWeight:600 }}>{c.name}</span>
-                            <span style={{ fontSize:10, color:c.status==="klien"?"#10b981":"#f59e0b", marginLeft:8 }}>{c.status}</span>
-                          </div>
-                          {saving===p.id?"...":"→"}
-                        </button>
-                      ))}
-                      {filteredComps.length === 0 && <div style={{ color:"#334155", fontSize:12, padding:8 }}>Tidak ditemukan</div>}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-
-export default function MasterDataPage({ onClose, isAdmin, projects = [], onSelectProject }) {
-  const [tab, setTab] = useState("perusahaan");
-  const [allCompanies, setAllCompanies] = useState([]);
-
-  useEffect(()=>{
-    const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token;
-    const SUPA_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
-    const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
-    fetch(`${SUPA_URL}/rest/v1/companies?order=name.asc&select=id,name,status`,{headers:{"apikey":SUPA_KEY,"Authorization":`Bearer ${token}`}})
-      .then(r=>r.json()).then(setAllCompanies).catch(()=>{});
-  },[]);
-
-  return (
-    <div style={{ position:"fixed", inset:0, background:"#060d1a", zIndex:2000, overflowY:"auto", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif", color:"#e2e8f0" }}>
-      <style>{`*,*::before,*::after{box-sizing:border-box}::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#0c1628}::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:3px}`}</style>
-      <div style={{ maxWidth:1000, margin:"0 auto", padding:"28px 20px" }}>
-
-        {/* Header */}
-        <div style={{ marginBottom:28 }}>
-          <button onClick={onClose} style={{ background:"none", border:"none", color:"#475569", cursor:"pointer", fontSize:13, marginBottom:8, padding:0, display:"flex", alignItems:"center", gap:6 }}>← Kembali ke Dashboard</button>
-          <h1 style={{ fontSize:28, fontWeight:900, color:"#f1f5f9", margin:0 }}>🗂 Data Master</h1>
-          <div style={{ fontSize:13, color:"#475569", marginTop:6 }}>Kelola data tim dan perusahaan yang digunakan di seluruh aplikasi</div>
-        </div>
-
-        {/* Tabs */}
-        <div style={{ display:"flex", gap:8, marginBottom:24 }}>
-          {[["perusahaan","🏢 Data Perusahaan"],["tim","👥 Data Tim"],["tautan","🔗 Tautan Proyek"]].map(([v,l])=>(
-            <button key={v} onClick={()=>setTab(v)} style={{
-              padding:"10px 24px", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer",
-              border:`1px solid ${tab===v?"#38bdf8":"#1e293b"}`,
-              background:tab===v?"#0c4a6e":"#0a1525",
-              color:tab===v?"#38bdf8":"#475569", transition:"all 0.15s",
-            }}>{l}</button>
+      {/* Filter + Search */}
+      <div style={{ display:"flex", gap:10, marginBottom:12, flexWrap:"wrap" }}>
+        <div style={{ display:"flex", gap:6 }}>
+          {[["all","Semua"],["linked","Tertaut"],["unlinked","Belum Tertaut"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setFilter(v)} style={{ padding:"6px 14px", borderRadius:8, border:`1px solid ${filter===v?"#38bdf8":"#1e293b"}`, background:filter===v?"#0c2a3f":"transparent", color:filter===v?"#38bdf8":"#475569", cursor:"pointer", fontSize:12, fontWeight:filter===v?700:400 }}>{l}</button>
           ))}
         </div>
+        <div style={{ position:"relative", flex:1, minWidth:200 }}>
+          <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:12, color:"#475569" }}>🔍</span>
+          <input style={{ width:"100%", background:"#0c1628", border:"1px solid #1e293b", borderRadius:8, padding:"7px 10px 7px 30px", color:"#e2e8f0", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }}
+            placeholder="Cari nama proyek atau klien..." value={search} onChange={e=>setSearch(e.target.value)} />
+        </div>
+      </div>
 
-        {/* Content */}
-        {tab === "perusahaan" && <CompanySection isAdmin={isAdmin} projects={projects} onSelectProject={onSelectProject} />}
-        {tab === "tautan" && (
-          <UnlinkedProjectsPanel
-            projects={projects}
-            companies={allCompanies}
-            onLink={(projectId, companyId)=>{
-              window.location.reload();
-            }}
-          />
-        )}
-        {tab === "tim" && <TeamSection isAdmin={isAdmin} />}
+      {/* Project list */}
+      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+        {filtered.length === 0 ? (
+          <div style={{ textAlign:"center", padding:30, color:"#334155" }}>Tidak ada proyek yang cocok</div>
+        ) : filtered.map(p => {
+          const linkedCompany = getCompany(p.company_id);
+          const suggestion = getSuggestion(p);
+          const isEditing = editingId === p.id;
+          const availableComps = companies.filter(c =>
+            c.name.toLowerCase().includes((compSearch[p.id]||"").toLowerCase()) &&
+            (!projects.find(pr=>pr.company_id===c.id) || c.id===p.company_id)
+          );
+
+          return (
+            <div key={p.id} style={{ background:"#0c1628", border:`1px solid ${isEditing?"#38bdf8":linkedCompany?"#10b98133":"#f59e0b33"}`, borderRadius:12, padding:14, transition:"border-color 0.15s" }}>
+              {/* Header row */}
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:10 }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:"#f1f5f9" }}>{p.name}</div>
+                  <div style={{ fontSize:11, color:"#475569", marginTop:2 }}>Klien di proyek: <span style={{ color:"#94a3b8" }}>{p.client||"-"}</span></div>
+
+                  {/* Current link status */}
+                  {linkedCompany ? (
+                    <div style={{ marginTop:6, display:"flex", alignItems:"center", gap:6 }}>
+                      <span style={{ fontSize:11, color:"#10b981" }}>🔗 Tertaut ke:</span>
+                      <span style={{ fontSize:11, fontWeight:700, color:"#10b981", padding:"2px 8px", borderRadius:999, background:"#052e16" }}>{linkedCompany.name}</span>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop:6 }}>
+                      <span style={{ fontSize:11, color:"#f59e0b" }}>⚠️ Belum tertaut ke perusahaan</span>
+                      {suggestion && !isEditing && (
+                        <button onClick={()=>handleSaveLink(p.id, suggestion.id)} disabled={saving===p.id}
+                          style={{ marginLeft:8, padding:"2px 10px", borderRadius:6, border:"none", background:"#451a03", color:"#f59e0b", cursor:"pointer", fontSize:11, fontWeight:600 }}>
+                          💡 Tautkan ke {suggestion.name}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Action buttons */}
+                <div style={{ display:"flex", gap:6, flexShrink:0 }}>
+                  {linkedCompany && !isEditing && (
+                    <button onClick={()=>handleSaveLink(p.id, null)} disabled={saving===p.id}
+                      style={{ padding:"5px 10px", borderRadius:8, border:"1px solid #7f1d1d", background:"transparent", color:"#ef4444", cursor:"pointer", fontSize:11 }}
+                      title="Lepas tautan">✕ Lepas</button>
+                  )}
+                  <button onClick={()=>setEditingId(isEditing?null:p.id)}
+                    style={{ padding:"5px 12px", borderRadius:8, border:`1px solid ${isEditing?"#ef4444":"#1d4ed8"}`, background:"transparent", color:isEditing?"#ef4444":"#38bdf8", cursor:"pointer", fontSize:11, fontWeight:600 }}>
+                    {isEditing?"✕ Batal":linkedCompany?"✏️ Ganti":"🔗 Tautkan"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Company picker when editing */}
+              {isEditing && (
+                <div style={{ marginTop:12, borderTop:"1px solid #1a2744", paddingTop:12 }}>
+                  <div style={{ fontSize:11, color:"#64748b", marginBottom:8 }}>
+                    {linkedCompany ? "Pilih perusahaan pengganti:" : "Pilih perusahaan:"}
+                  </div>
+                  <div style={{ position:"relative", marginBottom:8 }}>
+                    <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:12, color:"#475569" }}>🔍</span>
+                    <input autoFocus style={{ width:"100%", background:"#060d1a", border:"1px solid #1e293b", borderRadius:8, padding:"7px 10px 7px 30px", color:"#e2e8f0", fontSize:12, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }}
+                      placeholder="Cari perusahaan..." value={compSearch[p.id]||""}
+                      onChange={e=>setCompSearch(prev=>({...prev,[p.id]:e.target.value}))} />
+                  </div>
+                  <div style={{ maxHeight:180, overflowY:"auto", display:"flex", flexDirection:"column", gap:4 }}>
+                    {availableComps.slice(0,20).map(c=>(
+                      <button key={c.id} onClick={()=>handleSaveLink(p.id, c.id)} disabled={saving===p.id}
+                        style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${c.id===p.company_id?"#38bdf8":"#1a2744"}`, background:c.id===p.company_id?"#0c2a3f":"#0a1525", color:"#e2e8f0", cursor:"pointer", textAlign:"left", fontSize:12, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                        <div>
+                          <span style={{ fontWeight:600 }}>{c.name}</span>
+                          <span style={{ fontSize:10, color:c.status==="klien"?"#10b981":"#f59e0b", marginLeft:8 }}>{c.status}</span>
+                          {c.id===p.company_id && <span style={{ fontSize:10, color:"#38bdf8", marginLeft:6 }}>(saat ini)</span>}
+                        </div>
+                        <span style={{ color:"#475569", fontSize:12 }}>{saving===p.id?"...":"→"}</span>
+                      </button>
+                    ))}
+                    {availableComps.length === 0 && <div style={{ color:"#334155", fontSize:12, padding:8 }}>Tidak ditemukan atau semua sudah tertaut</div>}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
+
