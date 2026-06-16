@@ -1188,11 +1188,7 @@ export default function App() {
         const detail = [];
         if (nSess > 0) detail.push(`${nSess} sesi layanan teknis`);
         if (nActs > 0) detail.push(`${nActs} jadwal aktivitas`);
-        alert(`❌ Proyek "${proj?.name}" tidak dapat dihapus karena masih ada:
-• ${detail.join('
-• ')}
-
-Hapus semua transaksi terkait terlebih dahulu.`);
+        alert("Proyek \"" + (proj?.name||"") + "\" tidak dapat dihapus.\nMasih ada: " + detail.join(", ") + ".\nHapus transaksi terkait terlebih dahulu.");
         return;
       }
     } catch(e) { /* lanjut jika gagal cek */ }
