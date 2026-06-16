@@ -138,6 +138,92 @@ function TeamSection({ isAdmin }) {
 
 // ─── MASTER PERUSAHAAN ────────────────────────────────────────────────────────
 
+// ─── LINK PROJECT MODAL ──────────────────────────────────────────────────────
+function LinkProjectModal({ company, projects, onClose, onLinked }) {
+  const SUPA_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
+  const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
+  const [search, setSearch] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const linked = projects.filter(p => p.company_id === company.id);
+  const unlinked = projects.filter(p =>
+    !p.company_id &&
+    (p.name.toLowerCase().includes(search.toLowerCase()) ||
+     (p.client||"").toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const handleLink = async (projectId) => {
+    setSaving(true);
+    try {
+      const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPA_KEY;
+      const res = await fetch(`${SUPA_URL}/rest/v1/projects?id=eq.${projectId}`, {
+        method:"PATCH", headers:{"Content-Type":"application/json","apikey":SUPA_KEY,"Authorization":`Bearer ${token}`,"Prefer":"return=minimal"},
+        body: JSON.stringify({ company_id: company.id }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setMsg("Berhasil ditautkan!"); onLinked(projectId, company.id);
+      setTimeout(()=>setMsg(""),2000);
+    } catch(e) { setMsg("Gagal: "+e.message); }
+    setSaving(false);
+  };
+
+  const handleUnlink = async (projectId) => {
+    setSaving(true);
+    try {
+      const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPA_KEY;
+      await fetch(`${SUPA_URL}/rest/v1/projects?id=eq.${projectId}`, {
+        method:"PATCH", headers:{"Content-Type":"application/json","apikey":SUPA_KEY,"Authorization":`Bearer ${token}`,"Prefer":"return=minimal"},
+        body: JSON.stringify({ company_id: null }),
+      });
+      onLinked(projectId, null); setMsg("Tautan dihapus");
+      setTimeout(()=>setMsg(""),2000);
+    } catch(e) { setMsg("Gagal: "+e.message); }
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#00000099", zIndex:5000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={onClose}>
+      <div style={{ background:"#0f172a", border:"1px solid #1e293b", borderRadius:16, padding:24, maxWidth:560, width:"100%", maxHeight:"85vh", overflowY:"auto", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif" }} onClick={e=>e.stopPropagation()}>
+        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:16 }}>
+          <div><div style={{ fontSize:16, fontWeight:700, color:"#f1f5f9" }}>🔗 Tautkan Proyek ke Perusahaan</div>
+            <div style={{ fontSize:12, color:"#475569", marginTop:2 }}>{company.name}</div></div>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#64748b", fontSize:20, cursor:"pointer" }}>✕</button>
+        </div>
+        {msg && <div style={{ padding:"8px 12px", borderRadius:8, marginBottom:12, fontSize:12, background:"#052e16", color:"#10b981" }}>{msg}</div>}
+        {linked.length > 0 && (
+          <div style={{ marginBottom:16 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:"#10b981", textTransform:"uppercase", letterSpacing:0.8, marginBottom:8 }}>Sudah Ditautkan ({linked.length})</div>
+            {linked.map(p=>(
+              <div key={p.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 12px", background:"#052e16", border:"1px solid #10b98133", borderRadius:8, marginBottom:6 }}>
+                <div><div style={{ fontSize:13, fontWeight:600, color:"#f1f5f9" }}>{p.name}</div><div style={{ fontSize:11, color:"#475569" }}>{p.client}</div></div>
+                <button onClick={()=>handleUnlink(p.id)} disabled={saving} style={{ padding:"4px 10px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer", fontSize:11 }}>Lepas</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ fontSize:11, fontWeight:700, color:"#64748b", textTransform:"uppercase", letterSpacing:0.8, marginBottom:8 }}>Pilih Proyek untuk Ditautkan</div>
+        <div style={{ position:"relative", marginBottom:10 }}>
+          <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"#475569", fontSize:12 }}>🔍</span>
+          <input style={{ width:"100%", background:"#0c1628", border:"1px solid #1e293b", borderRadius:8, padding:"8px 10px 8px 30px", color:"#e2e8f0", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }}
+            placeholder="Cari proyek..." value={search} onChange={e=>setSearch(e.target.value)} autoFocus />
+        </div>
+        <div style={{ maxHeight:260, overflowY:"auto", display:"flex", flexDirection:"column", gap:6 }}>
+          {unlinked.length === 0
+            ? <div style={{ textAlign:"center", padding:20, color:"#334155", fontSize:13 }}>{search?"Tidak ada yang cocok":"Semua proyek sudah ditautkan"}</div>
+            : unlinked.map(p=>(
+              <div key={p.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 12px", background:"#0a1525", border:"1px solid #1a2744", borderRadius:8 }}>
+                <div><div style={{ fontSize:13, fontWeight:600, color:"#f1f5f9" }}>{p.name}</div><div style={{ fontSize:11, color:"#475569" }}>Klien: {p.client||"-"}</div></div>
+                <button onClick={()=>handleLink(p.id)} disabled={saving} style={{ padding:"5px 14px", borderRadius:8, border:"none", background:"#1d4ed8", color:"#fff", cursor:saving?"not-allowed":"pointer", fontSize:12, fontWeight:600 }}>Tautkan</button>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CompanySection({ isAdmin, projects = [], onSelectProject }) {
   const [companies, setCompanies] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
@@ -152,7 +238,8 @@ function CompanySection({ isAdmin, projects = [], onSelectProject }) {
   const [picSearch, setPicSearch] = useState("");
   const [newCompanyData, setNewCompanyData] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [selectedCompany, setSelectedCompany] = useState(null); // triggers project form after save
+  const [selectedCompany, setSelectedCompany] = useState(null);
+  const [linkTarget, setLinkTarget] = useState(null); // triggers project form after save
 
   useEffect(() => { load(); loadTeam(); }, []);
   const load = async () => {
@@ -372,6 +459,7 @@ function CompanySection({ isAdmin, projects = [], onSelectProject }) {
                   </div>
                   <div style={{ display:"flex", gap:6, flexShrink:0, alignItems:"center" }}>
                     {isAdmin && <>
+                      <button onClick={e=>{e.stopPropagation();setLinkTarget(c);}} title="Tautkan ke Proyek" style={{ padding:"4px 8px", borderRadius:6, border:"1px solid #0d9488", background:"transparent", color:"#14b8a6", cursor:"pointer", fontSize:11 }}>🔗</button>
                       <button onClick={e=>{e.stopPropagation();handleEdit(c);}} style={{ padding:"4px 8px", borderRadius:6, border:"1px solid #1d4ed8", background:"transparent", color:"#38bdf8", cursor:"pointer", fontSize:11 }}>✏️</button>
                       <button onClick={e=>{e.stopPropagation();handleDelete(c.id);}} style={{ padding:"4px 8px", borderRadius:6, border:"1px solid #7f1d1d", background:"transparent", color:"#ef4444", cursor:"pointer", fontSize:11 }}>🗑</button>
                     </>}
@@ -392,8 +480,8 @@ function CompanySection({ isAdmin, projects = [], onSelectProject }) {
                 {/* Inline project panel - shows when company is selected */}
                 {selectedCompany?.id===c.id && (() => {
                   const cp = projects.filter(p =>
-                    (p.client||"").trim().toLowerCase() === c.name.trim().toLowerCase() ||
-                    (p.name||"").trim().toLowerCase() === c.name.trim().toLowerCase()
+                    p.company_id === c.id ||
+                    (p.client||"").trim().toLowerCase() === c.name.trim().toLowerCase()
                   );
                   return (
                     <div style={{ marginTop:12, borderTop:"1px solid #1a2744", paddingTop:12 }} onClick={e=>e.stopPropagation()}>
@@ -437,6 +525,20 @@ function CompanySection({ isAdmin, projects = [], onSelectProject }) {
         </div>
       )}
     </div>
+    {linkTarget && (
+      <LinkProjectModal
+        company={linkTarget}
+        projects={projects}
+        onClose={()=>setLinkTarget(null)}
+        onLinked={(projectId, companyId)=>{
+          // Update local projects cache
+          if (onSelectProject) {
+            // trigger refresh by toggling selectedCompany
+            setSelectedCompany(prev=>prev?{...prev}:prev);
+          }
+        }}
+      />
+    )}
     {newCompanyData && (
       <NewClientProjectModal
         company={newCompanyData}
