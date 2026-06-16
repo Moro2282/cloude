@@ -71,7 +71,24 @@ function TeamSection({ isAdmin }) {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Hapus anggota tim ini?")) return;
+    const member = members.find(m=>m.id===id);
+    const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
+    try {
+      // Cek jadwal aktivitas yang menggunakan anggota ini
+      const actRes = await fetch(`https://kfhbrodsgurvrsfpecwq.supabase.co/rest/v1/team_activities?team_member_ids=cs.["${id}"]&select=id&limit=1`, {headers:{"apikey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ","Authorization":`Bearer ${token}`}}).then(r=>r.json()).catch(()=>[]);
+      // Cek training sessions
+      const sessRes = await fetch(`https://kfhbrodsgurvrsfpecwq.supabase.co/rest/v1/training_sessions?trainer_name=eq.${encodeURIComponent(member?.name||"")}&select=id&limit=1`, {headers:{"apikey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ","Authorization":`Bearer ${token}`}}).then(r=>r.json()).catch(()=>[]);
+      const hasAct = Array.isArray(actRes) && actRes.length > 0;
+      const hasSess = Array.isArray(sessRes) && sessRes.length > 0;
+      if (hasAct || hasSess) {
+        const detail = [];
+        if (hasAct) detail.push("jadwal aktivitas");
+        if (hasSess) detail.push("sesi layanan teknis");
+        notify(setMsg, `❌ Anggota "${member?.name}" tidak dapat dihapus karena masih terdapat ${detail.join(" dan ")} terkait.`, "error");
+        return;
+      }
+    } catch(e) { /* lanjut */ }
+    if (!window.confirm(`Hapus anggota tim "${member?.name}"?`)) return;
     try { await dbDelete("team_members", id); load(); notify(setMsg,"Berhasil dihapus!"); }
     catch(e) { notify(setMsg, e.message, "error"); }
   };
@@ -294,7 +311,25 @@ function CompanySection({ isAdmin, projects = [], onSelectProject }) {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Hapus perusahaan ini?")) return;
+    const comp = companies.find(c=>c.id===id);
+    // Cek: ada proyek terkait?
+    const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
+    try {
+      const [projRes, actRes] = await Promise.all([
+        fetch(`https://kfhbrodsgurvrsfpecwq.supabase.co/rest/v1/projects?company_id=eq.${id}&select=id,name&limit=1`, {headers:{"apikey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ","Authorization":`Bearer ${token}`}}).then(r=>r.json()).catch(()=>[]),
+        fetch(`https://kfhbrodsgurvrsfpecwq.supabase.co/rest/v1/team_activities?company_id=eq.${id}&select=id&limit=1`, {headers:{"apikey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ","Authorization":`Bearer ${token}`}}).then(r=>r.json()).catch(()=>[]),
+      ]);
+      const hasProject = Array.isArray(projRes) && projRes.length > 0;
+      const hasActivity = Array.isArray(actRes) && actRes.length > 0;
+      if (hasProject || hasActivity) {
+        const detail = [];
+        if (hasProject) detail.push(`proyek: "${projRes[0]?.name}"`);
+        if (hasActivity) detail.push(`${actRes.length} jadwal aktivitas`);
+        notify(setMsg, `❌ Perusahaan "${comp?.name}" tidak dapat dihapus karena masih ada ${detail.join(" dan ")}. Hapus transaksi terkait terlebih dahulu.`, "error");
+        return;
+      }
+    } catch(e) { /* lanjut jika gagal cek */ }
+    if (!window.confirm(`Hapus perusahaan "${comp?.name}"?`)) return;
     try { await dbDelete("companies", id); load(); notify(setMsg,"Berhasil dihapus!"); }
     catch(e) { notify(setMsg, e.message, "error"); }
   };
