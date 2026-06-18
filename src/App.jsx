@@ -413,7 +413,18 @@ function OverviewTab({ p, updateField, SaveBtn }) {
                         <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 999, background: c.status === "klien" ? "#052e16" : "#451a03", color: c.status === "klien" ? "#10b981" : "#f59e0b" }}>{c.status === "klien" ? "Klien" : "Prospek"}</span>
                       </button>
                     ))}
-                    {filtered.length === 0 && <div style={{ fontSize: 12, color: "#334155", padding: 8 }}>Tidak ditemukan</div>}
+                    {filtered.length === 0 && (
+                      <div style={{ padding: 8 }}>
+                        <div style={{ fontSize: 12, color: "#334155", marginBottom: 8 }}>
+                          "{compSearch}" tidak ditemukan di Master Perusahaan
+                        </div>
+                        <button
+                          onClick={() => { setNewCompanyName(compSearch); setShowAddCompany(true); }}
+                          style={{ width:"100%", padding:"9px 12px", borderRadius:8, border:"1px dashed #1d4ed8", background:"transparent", color:"#38bdf8", cursor:"pointer", fontSize:12, fontWeight:600, textAlign:"left" }}>
+                          ➕ Tambah "{compSearch}" sebagai perusahaan baru
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -929,9 +940,11 @@ function LaporanModal({ projects, onClose, embedded }) {
 function AddProjectModal({ onClose, onAdd }) {
   const SUPA_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
   const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
-  const [form, setForm] = useState({ name:"", client:"", clientEmail:"", startDate:new Date().toISOString().split("T")[0], trainTotal:40, invTotal:10 });
+  const [form, setForm] = useState({ name:"", client:"", clientEmail:"", company_id:null, startDate:new Date().toISOString().split("T")[0], trainTotal:40, invTotal:10 });
   const [loading, setLoading] = useState(false);
   const [companies, setCompanies] = useState([]);
+  const [showAddCompany, setShowAddCompany] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState("");
   const [compSearch, setCompSearch] = useState("");
   const [showCompPicker, setShowCompPicker] = useState(false);
   const f = (k,v) => setForm(x=>({...x,[k]:v}));
@@ -993,6 +1006,7 @@ function AddProjectModal({ onClose, onAdd }) {
   };
 
   return (
+    <>
     <Modal title="Tambah Proyek Baru" onClose={onClose}>
       {/* Client picker from Master Perusahaan */}
       {companies.length > 0 && (
@@ -1012,7 +1026,15 @@ function AddProjectModal({ onClose, onAdd }) {
                     {c.pic_name && <span style={{ fontSize:11, color:"#475569" }}>· {c.pic_name}</span>}
                   </button>
                 ))}
-                {filteredComps.length===0 && <div style={{ color:"#334155", fontSize:12, textAlign:"center", padding:10 }}>Tidak ditemukan</div>}
+                {filteredComps.length===0 && (
+                <div style={{ padding:8 }}>
+                  <div style={{ fontSize:12, color:"#475569", marginBottom:8, textAlign:"center" }}>"{compSearch}" tidak ditemukan</div>
+                  <button onClick={()=>{ setNewCompanyName(compSearch); setShowAddCompany(true); setShowCompPicker(false); }}
+                    style={{ width:"100%", padding:"8px 12px", borderRadius:8, border:"1px dashed #1d4ed8", background:"transparent", color:"#38bdf8", cursor:"pointer", fontSize:12, fontWeight:600 }}>
+                    ➕ Tambah "{compSearch}" sebagai perusahaan baru
+                  </button>
+                </div>
+              )}
               </div>
             </div>
           )}
@@ -1032,6 +1054,47 @@ function AddProjectModal({ onClose, onAdd }) {
         <button onClick={onClose} style={{ padding:"10px 20px", borderRadius:8, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>Batal</button>
       </div>
     </Modal>
+
+    {showAddCompany && (
+      <div style={{ position:"fixed", inset:0, background:"#00000099", zIndex:6000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={()=>setShowAddCompany(false)}>
+        <div style={{ background:"#0f172a", border:"1px solid #1e293b", borderRadius:16, padding:24, maxWidth:420, width:"100%", fontFamily:"inherit" }} onClick={e=>e.stopPropagation()}>
+          <div style={{ fontSize:15, fontWeight:700, color:"#f1f5f9", marginBottom:4 }}>🏢 Tambah Perusahaan Baru</div>
+          <div style={{ fontSize:12, color:"#475569", marginBottom:16 }}>Perusahaan akan ditambahkan ke Master Data</div>
+          <div style={{ marginBottom:16 }}>
+            <label style={{ fontSize:11, color:"#64748b", display:"block", marginBottom:4 }}>Nama Perusahaan *</label>
+            <input autoFocus style={{ width:"100%", background:"#0c1628", border:"1px solid #1e293b", borderRadius:8, padding:"8px 10px", color:"#e2e8f0", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }}
+              value={newCompanyName} onChange={e=>setNewCompanyName(e.target.value)}
+              onKeyDown={e=>{ if(e.key==="Enter") e.currentTarget.nextSibling?.click(); }} />
+          </div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button onClick={async () => {
+              if (!newCompanyName.trim()) return;
+              try {
+                const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPA_KEY;
+                const res = await fetch(SUPA_URL + "/rest/v1/companies", {
+                  method:"POST",
+                  headers:{"Content-Type":"application/json","apikey":SUPA_KEY,"Authorization":"Bearer "+token,"Prefer":"return=representation"},
+                  body: JSON.stringify({ name: newCompanyName.trim(), status:"prospek" }),
+                });
+                if (!res.ok) throw new Error(await res.text());
+                const [newComp] = await res.json();
+                setCompanies(prev => [...prev, newComp].sort((a,b)=>a.name.localeCompare(b.name)));
+                selectCompany(newComp);
+                setShowAddCompany(false);
+                setNewCompanyName("");
+              } catch(e) { alert("Gagal tambah perusahaan: " + e.message); }
+            }} style={{ flex:1, padding:"9px", borderRadius:8, border:"none", background:"#059669", color:"#fff", cursor:"pointer", fontWeight:600, fontSize:13 }}>
+              ✓ Simpan & Pilih
+            </button>
+            <button onClick={()=>{ setShowAddCompany(false); setNewCompanyName(""); }}
+              style={{ padding:"9px 16px", borderRadius:8, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>
+              Batal
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
