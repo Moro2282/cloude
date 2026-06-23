@@ -159,31 +159,20 @@ export default function UserManager({ currentUser, onClose }) {
   };
 
   const handleResetPassword = async (userId, email, newPassword) => {
-    // Use Supabase Auth Admin API via REST
-    const { getSession } = await import("./auth");
-    // Since we cannot call admin API from browser with anon key,
-    // we use signUpEmail which will update password if email exists via upsert
-    // Best approach: inform user to use the Supabase dashboard or use service role
-    // Practical: we sign in as admin and use the update endpoint
-    const SUPABASE_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
-    const session = JSON.parse(localStorage.getItem("sb_session"));
-    // Update password using admin endpoint - requires service_role but we try with user token
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+    // Use service_role key to call Admin API
+    const res = await fetch("https://kfhbrodsgurvrsfpecwq.supabase.co/auth/v1/admin/users/" + userId, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "apikey": SUPABASE_KEY,
-        "Authorization": `Bearer ${session?.access_token}`,
+        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDQ0OTU0NSwiZXhwIjoyMDk2MDI1NTQ1fQ.Pz7IbWmBU8eGTA2Ie9HKkqoY5blgm5bZZ9FkFvjvnEw",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDQ0OTU0NSwiZXhwIjoyMDk2MDI1NTQ1fQ.Pz7IbWmBU8eGTA2Ie9HKkqoY5blgm5bZZ9FkFvjvnEw",
       },
       body: JSON.stringify({ password: newPassword }),
     });
     if (!res.ok) {
-      // Fallback: store in password_resets table for user to see
-      throw new Error("Reset via admin API gagal. Gunakan Supabase Dashboard → Authentication → Users → Edit user untuk reset manual.");
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || "Gagal reset password");
     }
-    notify(`Password ${email} berhasil direset!`);
-    setResetTarget(null);
   };
 
   return (
