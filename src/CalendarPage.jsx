@@ -394,12 +394,12 @@ export default function CalendarPage({ onClose, projects }) {
         {/* Stats */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:20 }}>
           {[
-            ["Total Event", filteredEvents.length, "#38bdf8"],
-            ["Mendatang", upcomingCount, "#a78bfa"],
-            ["⚠️ Peringatan", warningCount, "#f59e0b"],
-            ["🔴 Expired", expiredCount, "#ef4444"],
-          ].map(([l,v,c])=>(
-            <div key={l} style={{ background:"#0c1628", border:"1px solid #1a2744", borderRadius:12, padding:"12px 16px" }}>
+            ["📅 Total Event",  filteredEvents.length, "#38bdf8", "Semua jadwal, sesi & kontrak aktif bulan ini"],
+            ["🔜 Mendatang",    upcomingCount,          "#a78bfa", "Event dalam 30 hari ke depan"],
+            ["⚠️ Hampir Habis", warningCount,           "#f59e0b", "Free support / server ≤ 30 hari lagi"],
+            ["🔴 Expired",      expiredCount,           "#ef4444", "Free support / server sudah berakhir"],
+          ].map(([l,v,c,desc])=>(
+            <div key={l} title={desc} style={{ background:"#0c1628", border:"1px solid #1a2744", borderRadius:12, padding:"12px 16px", cursor:"default" }}>
               <div style={{ fontSize:22, fontWeight:800, color:c }}>{v}</div>
               <div style={{ fontSize:11, color:"#475569" }}>{l}</div>
             </div>
