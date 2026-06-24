@@ -1155,6 +1155,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState({ support: "all", impl: "all", server: "all" });
+  const [activeStatFilter, setActiveStatFilter] = useState(null);
 
   useEffect(() => {
     async function init() {
@@ -1325,14 +1326,24 @@ export default function App() {
       if (filters.server === "none" && hasServer) return false;
       if (filters.server === "expiring" && !svrExpiring) return false;
     }
+    // Stat card filter
+    if (activeStatFilter === "perpanjang") {
+      if (getDaysRemaining(p.freeSupport.endDate) > 90) return false;
+    }
+    if (activeStatFilter === "server_aktif") {
+      if (!p.server || !p.server.active) return false;
+    }
+    if (activeStatFilter === "server_habis") {
+      if (!p.server || !p.server.active || !p.server.endDate || getDaysRemaining(p.server.endDate) > 30) return false;
+    }
     return true;
   });
 
   const stats = [
-    { label:"Total Proyek", val:projects.length, color:"#38bdf8", icon:"📁" },
-    { label:"Perlu Perpanjang", val:projects.filter(p=>getDaysRemaining(p.freeSupport.endDate)<=90).length, color:"#f59e0b", icon:"🔔" },
-    { label:"Server Aktif", val:projects.filter(p=>p.server&&p.server.active).length, color:"#10b981", icon:"🖥️" },
-    { label:"Server Mau Habis", val:projects.filter(p=>p.server&&p.server.active&&p.server.endDate&&getDaysRemaining(p.server.endDate)<=30).length, color:"#ef4444", icon:"⚠️" },
+    { label:"Total Proyek",     val:projects.length, color:"#38bdf8", icon:"📁", filterKey:"all" },
+    { label:"Perlu Perpanjang", val:projects.filter(p=>getDaysRemaining(p.freeSupport.endDate)<=90).length, color:"#f59e0b", icon:"🔔", filterKey:"perpanjang" },
+    { label:"Server Aktif",     val:projects.filter(p=>p.server&&p.server.active).length, color:"#10b981", icon:"🖥️", filterKey:"server_aktif" },
+    { label:"Server Mau Habis", val:projects.filter(p=>p.server&&p.server.active&&p.server.endDate&&getDaysRemaining(p.server.endDate)<=30).length, color:"#ef4444", icon:"⚠️", filterKey:"server_habis" },
   ];
 
   // Sidebar nav structure
@@ -1516,16 +1527,31 @@ export default function App() {
                   { label:"Server Aktif", val:projects.filter(p=>p.server&&p.server.active).length, color:"#10b981", icon:"🖥️" },
                   { label:"Server Mau Habis", val:projects.filter(p=>p.server&&p.server.active&&p.server.endDate&&getDaysRemaining(p.server.endDate)<=30).length, color:"#ef4444", icon:"⚠️" },
                 ].map(s=>(
-                  <div key={s.label} style={{ background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:14, padding:"16px 18px" }}>
+                  <div key={s.label}
+                    onClick={()=>setActiveStatFilter(activeStatFilter===s.filterKey?null:s.filterKey)}
+                    style={{ background:activeStatFilter===s.filterKey?s.color+"22":T.bgCard, border:`1px solid ${activeStatFilter===s.filterKey?s.color:T.border}`, borderRadius:14, padding:"16px 18px", cursor:"pointer", transition:"all 0.2s" }}
+                    onMouseEnter={e=>{ if(activeStatFilter!==s.filterKey) e.currentTarget.style.border=`1px solid ${s.color}66`; }}
+                    onMouseLeave={e=>{ if(activeStatFilter!==s.filterKey) e.currentTarget.style.border=`1px solid ${T.border}`; }}>
                     <div style={{ fontSize:20 }}>{s.icon}</div>
                     <div style={{ fontSize:28, fontWeight:900, color:s.color, lineHeight:1.1 }}>{s.val}</div>
                     <div style={{ fontSize:11, color:T.textMuted, marginTop:2, fontWeight:500 }}>{s.label}</div>
+                    {activeStatFilter===s.filterKey && <div style={{ fontSize:9, color:s.color, fontWeight:700, marginTop:4, textTransform:"uppercase", letterSpacing:1 }}>● Filter Aktif</div>}
                   </div>
                 ))}
               </div>
 
               {/* Search + Filter */}
               <div style={{ marginBottom:20 }}>
+                {activeStatFilter && activeStatFilter !== "all" && (() => {
+                  const ast = stats.find(s=>s.filterKey===activeStatFilter);
+                  return ast ? (
+                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10, padding:"8px 14px", background:ast.color+"22", borderRadius:10, border:"1px solid "+ast.color+"44" }}>
+                      <span style={{ fontSize:12, color:ast.color, fontWeight:700 }}>{ast.icon} Filter: {ast.label}</span>
+                      <span style={{ fontSize:11, color:"#475569" }}>({filteredProjects.length} proyek)</span>
+                      <button onClick={()=>setActiveStatFilter(null)} style={{ marginLeft:"auto", padding:"2px 10px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer", fontSize:11 }}>✕ Reset</button>
+                    </div>
+                  ) : null;
+                })()}
                 <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
                   <div style={{ position:"relative", flex:"1", minWidth:220 }}>
                     <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:14, color:T.textMuted }}>🔍</span>
