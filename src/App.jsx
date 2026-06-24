@@ -1521,12 +1521,7 @@ export default function App() {
 
               {/* Stats */}
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:12, marginBottom:24 }}>
-                {[
-                  { label:"Total Proyek", val:projects.length, color:"#38bdf8", icon:"📁" },
-                  { label:"Perlu Perpanjang", val:projects.filter(p=>getDaysRemaining(p.freeSupport.endDate)<=90).length, color:"#f59e0b", icon:"🔔" },
-                  { label:"Server Aktif", val:projects.filter(p=>p.server&&p.server.active).length, color:"#10b981", icon:"🖥️" },
-                  { label:"Server Mau Habis", val:projects.filter(p=>p.server&&p.server.active&&p.server.endDate&&getDaysRemaining(p.server.endDate)<=30).length, color:"#ef4444", icon:"⚠️" },
-                ].map(s=>(
+                {stats.map(s=>(
                   <div key={s.label}
                     onClick={()=>setActiveStatFilter(activeStatFilter===s.filterKey?null:s.filterKey)}
                     style={{ background:activeStatFilter===s.filterKey?s.color+"22":T.bgCard, border:`1px solid ${activeStatFilter===s.filterKey?s.color:T.border}`, borderRadius:14, padding:"16px 18px", cursor:"pointer", transition:"all 0.2s" }}
