@@ -279,6 +279,7 @@ export default function KomisiPage({ onClose }) {
   const [dateTo, setDateTo]     = useState(todayStr);
   const [filterTrainer, setFilterTrainer] = useState("all");
   const [filterStatus, setFilterStatus]   = useState("all"); // all | internal | partner
+  const [filterCompany, setFilterCompany] = useState("all");
   const [viewMode, setViewMode]           = useState("ringkasan"); // ringkasan | detail
 
   useEffect(() => {
@@ -292,6 +293,7 @@ export default function KomisiPage({ onClose }) {
     if (dateFrom && s.training_date < dateFrom) return false;
     if (dateTo   && s.training_date > dateTo)   return false;
     if (filterTrainer !== "all" && s.trainer_name !== filterTrainer && s.person2_name !== filterTrainer) return false;
+    if (filterCompany !== "all" && (s.projects?.name || s.project_id) !== filterCompany) return false;
     if (filterStatus === "internal" && s.is_partner) return false;
     if (filterStatus === "partner"  && !s.is_partner) return false;
     return true;
@@ -325,6 +327,10 @@ export default function KomisiPage({ onClose }) {
     ...sessions.map(s => s.trainer_name),
     ...sessions.filter(s => s.has_second_person && s.person2_name).map(s => s.person2_name)
   ])].filter(Boolean).sort();
+
+  const allCompanies = [...new Set(
+    sessions.map(s => s.projects?.name).filter(Boolean)
+  )].sort();
 
   const grandTotal = {
     jam: filtered.reduce((a, s) => a + parseFloat(s.hours_used||0), 0),
@@ -451,6 +457,13 @@ export default function KomisiPage({ onClose }) {
               <select style={{ ...INP, width:"100%", cursor:"pointer" }} value={filterTrainer} onChange={e=>setFilterTrainer(e.target.value)}>
                 <option value="all">Semua Trainer</option>
                 {allTrainers.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize:11, color:"#64748b", display:"block", marginBottom:4 }}>🏢 Perusahaan / Proyek</label>
+              <select style={{ ...INP, width:"100%", cursor:"pointer" }} value={filterCompany} onChange={e=>setFilterCompany(e.target.value)}>
+                <option value="all">Semua Perusahaan</option>
+                {allCompanies.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div>
