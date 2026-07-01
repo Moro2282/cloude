@@ -533,8 +533,8 @@ export function ActivityFormModal({ activity, members, companies, currentUser, o
   const selectCompany = (c) => setForm(f => ({ ...f, company_id: c.id, company_name: c.name, company_status: c.status }));
 
   const handleSave = async () => {
-    if (!form.activity_date || form.team_member_names.length === 0 || !form.company_name) {
-      notify(setMsg, "Tanggal, minimal 1 anggota tim, dan perusahaan wajib diisi", "error"); return;
+    if (!form.activity_date || form.team_member_names.length === 0) {
+      notify(setMsg, "Tanggal dan minimal 1 anggota tim wajib diisi", "error"); return;
     }
     setSaving(true);
     try {
