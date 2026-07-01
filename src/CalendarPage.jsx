@@ -293,6 +293,166 @@ function AgendaView({ events, onEventClick }) {
 }
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
+// ─── QUICK ADD FROM CALENDAR ─────────────────────────────────────────────────
+function QuickAddFromCalendar({ date, members, companies, currentUser, onClose, onSaved }) {
+  const SUPA_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
+  const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
+  const today = new Date().toISOString().split("T")[0];
+  const [form, setForm] = useState({
+    activity_date: date || today,
+    activity_type: "kunjungan",
+    company_id: "", company_name: "",
+    team_member_ids: [], team_member_names: [],
+    start_time: "08:00", end_time: "10:00",
+    outcome: "", notes: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [compSearch, setCompSearch] = useState("");
+  const [showCompDrop, setShowCompDrop] = useState(false);
+  const [memberSearch, setMemberSearch] = useState("");
+
+  const INP = { width:"100%", background:"#0c1628", border:"1px solid #1e293b", borderRadius:8, padding:"8px 10px", color:"#e2e8f0", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box", marginTop:4 };
+
+  const filteredComps = companies.filter(c => c.name.toLowerCase().includes(compSearch.toLowerCase())).slice(0,8);
+  const filteredMembers = members.filter(m =>
+    !form.team_member_ids.includes(m.id) &&
+    m.name.toLowerCase().includes(memberSearch.toLowerCase())
+  ).slice(0,6);
+
+  const handleSave = async () => {
+    if (!form.activity_date || form.team_member_ids.length === 0) {
+      alert("Tanggal dan minimal 1 anggota tim wajib diisi"); return;
+    }
+    setSaving(true);
+    try {
+      const token = JSON.parse(localStorage.getItem("sb_session"))?.access_token || SUPA_KEY;
+      await fetch(SUPA_URL + "/rest/v1/team_activities", {
+        method: "POST",
+        headers: { "Content-Type":"application/json","apikey":SUPA_KEY,"Authorization":"Bearer "+token,"Prefer":"return=minimal" },
+        body: JSON.stringify({
+          activity_date: form.activity_date,
+          activity_type: form.activity_type,
+          company_id: form.company_id || null,
+          company_name: form.company_name,
+          team_member_ids: form.team_member_ids,
+          team_member_names: form.team_member_names,
+          start_time: form.start_time,
+          end_time: form.end_time,
+          outcome: form.outcome,
+          notes: form.notes,
+          created_by: currentUser?.id || null,
+        }),
+      });
+      onSaved();
+    } catch(e) { alert("Gagal: " + e.message); }
+    setSaving(false);
+  };
+
+  const ACTIVITY_TYPES = [["kunjungan","🤝 Kunjungan"],["training","📚 Training"],["onsite","🔧 Onsite IT"],["survey","📋 Survey"],["presentasi","🎯 Presentasi"],["lainnya","📌 Lainnya"]];
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#00000099", zIndex:5000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={onClose}>
+      <div style={{ background:"#0f172a", border:"1px solid #1e293b", borderRadius:16, padding:24, maxWidth:520, width:"100%", maxHeight:"90vh", overflowY:"auto", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif" }} onClick={e=>e.stopPropagation()}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
+          <div style={{ fontSize:16, fontWeight:700, color:"#f1f5f9" }}>📅 Buat Jadwal Aktivitas</div>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#64748b", fontSize:20, cursor:"pointer" }}>✕</button>
+        </div>
+
+        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+          {/* Tanggal & Jam */}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
+            <div style={{ gridColumn:"1/-1" }}>
+              <label style={{ fontSize:11, color:"#64748b" }}>Tanggal *</label>
+              <input type="date" style={INP} value={form.activity_date} onChange={e=>setForm(f=>({...f,activity_date:e.target.value}))} />
+            </div>
+            <div>
+              <label style={{ fontSize:11, color:"#64748b" }}>Jam Mulai</label>
+              <input type="time" style={INP} value={form.start_time} onChange={e=>setForm(f=>({...f,start_time:e.target.value}))} />
+            </div>
+            <div>
+              <label style={{ fontSize:11, color:"#64748b" }}>Jam Selesai</label>
+              <input type="time" style={INP} value={form.end_time} onChange={e=>setForm(f=>({...f,end_time:e.target.value}))} />
+            </div>
+          </div>
+
+          {/* Jenis */}
+          <div>
+            <label style={{ fontSize:11, color:"#64748b", display:"block", marginBottom:6 }}>Jenis Aktivitas</label>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+              {ACTIVITY_TYPES.map(([v,l])=>(
+                <button key={v} onClick={()=>setForm(f=>({...f,activity_type:v}))} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", border:`1px solid ${form.activity_type===v?"#38bdf8":"#1e293b"}`, background:form.activity_type===v?"#0c2a3f":"transparent", color:form.activity_type===v?"#38bdf8":"#475569" }}>{l}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Anggota Tim */}
+          <div>
+            <label style={{ fontSize:11, color:"#64748b", display:"block", marginBottom:4 }}>Anggota Tim *</label>
+            {form.team_member_names.length > 0 && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:6 }}>
+                {form.team_member_names.map((name,i)=>(
+                  <span key={name} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:999, fontSize:11, fontWeight:600, background:"#0c2a3f", color:"#38bdf8" }}>
+                    {name}
+                    <span onClick={()=>setForm(f=>({...f,team_member_ids:f.team_member_ids.filter((_,j)=>j!==i),team_member_names:f.team_member_names.filter((_,j)=>j!==i)}))} style={{ cursor:"pointer", opacity:0.7 }}>✕</span>
+                  </span>
+                ))}
+              </div>
+            )}
+            <input style={INP} placeholder="Ketik nama untuk mencari..." value={memberSearch}
+              onChange={e=>setMemberSearch(e.target.value)} />
+            {memberSearch && filteredMembers.length > 0 && (
+              <div style={{ background:"#060d1a", border:"1px solid #1e293b", borderRadius:8, marginTop:4, maxHeight:160, overflowY:"auto" }}>
+                {filteredMembers.map(m=>(
+                  <div key={m.id} onMouseDown={()=>{ setForm(f=>({...f,team_member_ids:[...f.team_member_ids,m.id],team_member_names:[...f.team_member_names,m.name]})); setMemberSearch(""); }}
+                    style={{ padding:"8px 12px", cursor:"pointer", fontSize:13, color:"#e2e8f0", borderBottom:"1px solid #0f172a" }}
+                    onMouseEnter={e=>e.currentTarget.style.background="#0a1525"}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    {m.name} {m.position && <span style={{ fontSize:11, color:"#475569" }}>· {m.position}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Perusahaan */}
+          <div style={{ position:"relative" }}>
+            <label style={{ fontSize:11, color:"#64748b", display:"block", marginBottom:4 }}>Perusahaan</label>
+            <input style={INP} placeholder="Cari perusahaan..." value={compSearch}
+              onChange={e=>{ setCompSearch(e.target.value); setShowCompDrop(true); setForm(f=>({...f,company_id:"",company_name:e.target.value})); }}
+              onFocus={()=>setShowCompDrop(true)} />
+            {showCompDrop && compSearch && filteredComps.length > 0 && (
+              <div style={{ position:"absolute", top:"100%", left:0, right:0, background:"#060d1a", border:"1px solid #1e293b", borderRadius:8, zIndex:10, maxHeight:160, overflowY:"auto" }}>
+                {filteredComps.map(c=>(
+                  <div key={c.id} onMouseDown={()=>{ setForm(f=>({...f,company_id:c.id,company_name:c.name})); setCompSearch(c.name); setShowCompDrop(false); }}
+                    style={{ padding:"8px 12px", cursor:"pointer", fontSize:13, color:"#e2e8f0", borderBottom:"1px solid #0f172a" }}
+                    onMouseEnter={e=>e.currentTarget.style.background="#0a1525"}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    {c.name}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Catatan */}
+          <div>
+            <label style={{ fontSize:11, color:"#64748b" }}>Hasil / Catatan</label>
+            <textarea style={{ ...INP, resize:"vertical" }} rows={2} value={form.outcome} onChange={e=>setForm(f=>({...f,outcome:e.target.value}))} placeholder="Ringkasan hasil kunjungan..." />
+          </div>
+
+          <div style={{ display:"flex", gap:8 }}>
+            <button onClick={handleSave} disabled={saving} style={{ flex:1, padding:"10px", borderRadius:8, border:"none", background:saving?"#1e293b":"#059669", color:saving?"#475569":"#fff", cursor:saving?"not-allowed":"pointer", fontWeight:700, fontSize:14 }}>
+              {saving?"Menyimpan...":"💾 Simpan Jadwal"}
+            </button>
+            <button onClick={onClose} style={{ padding:"10px 16px", borderRadius:8, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer" }}>Batal</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export default function CalendarPage({ onClose, projects, currentUser }) {
   const [view, setView] = useState("month");
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -515,15 +675,15 @@ export default function CalendarPage({ onClose, projects, currentUser }) {
 
       {selectedEvent && <EventDetailModal event={selectedEvent} onClose={()=>setSelectedEvent(null)} />}
 
-      {/* ActivityFormModal */}
-      {showForm && members.length > 0 && (
-        <ActivityFormModal
-          activity={formDate ? { activity_date: formDate } : null}
+      {/* Quick Add Activity Modal */}
+      {showForm && (
+        <QuickAddFromCalendar
+          date={formDate}
           members={members}
           companies={companies}
           currentUser={currentUser}
           onClose={()=>{ setShowForm(false); setFormDate(null); }}
-          onSave={handleSaveActivity}
+          onSaved={()=>{ setShowForm(false); setFormDate(null); loadAll(); }}
         />
       )}
     </>
