@@ -484,7 +484,7 @@ function QuickAddCompanyModal({ onClose, onSave }) {
 }
 
 // ─── FORM AKTIVITAS ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-function ActivityFormModal({ activity, members, companies, currentUser, onClose, onSave }) {
+export function ActivityFormModal({ activity, members, companies, currentUser, onClose, onSave }) {
   const isEdit = !!activity;
   const [form, setForm] = useState(activity ? {
     activity_date: activity.activity_date,
