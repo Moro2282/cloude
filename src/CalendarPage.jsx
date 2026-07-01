@@ -410,14 +410,10 @@ export default function CalendarPage({ onClose, projects, currentUser }) {
             <h1 style={{ fontSize:28, fontWeight:900, color:"#f1f5f9", margin:0 }}>🗓 Kalender</h1>
             <div style={{ fontSize:13, color:"#475569", marginTop:4 }}>{upcomingCount} event mendatang · {warningCount} peringatan · {expiredCount} expired</div>
           </div>
-          {/* Actions */}
           <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-            <button onClick={()=>{ setFormDate(null); setShowForm(true); }}
-              style={{ padding:"9px 18px", borderRadius:10, border:"none", background:"#1d4ed8", color:"#fff", cursor:"pointer", fontSize:13, fontWeight:700, display:"flex", alignItems:"center", gap:6 }}>
+            <button onClick={()=>{ setFormDate(null); setShowForm(true); }} style={{ padding:"9px 18px", borderRadius:10, border:"none", background:"#1d4ed8", color:"#fff", cursor:"pointer", fontSize:13, fontWeight:700 }}>
               + Buat Jadwal
             </button>
-            {/* View switcher */}
-            <div style={{ display:"flex", gap:8 }}>
             {[["month","📅 Bulan"],["agenda","📋 Agenda"]].map(([v,l])=>(
               <button key={v} onClick={()=>{ setView(v); setSelectedDate(null); }} style={{ padding:"9px 18px", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer", border:`1px solid ${view===v?"#38bdf8":"#1e293b"}`, background:view===v?"#0c4a6e":"#0a1525", color:view===v?"#38bdf8":"#475569" }}>{l}</button>
             ))}
@@ -515,9 +511,9 @@ export default function CalendarPage({ onClose, projects, currentUser }) {
           </div>
         )}
       </div>
+      </div>
 
       {selectedEvent && <EventDetailModal event={selectedEvent} onClose={()=>setSelectedEvent(null)} />}
-    </div>
 
       {/* ActivityFormModal */}
       {showForm && members.length > 0 && (
