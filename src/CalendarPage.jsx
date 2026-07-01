@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { ActivityFormModal } from "./ActivityPage";
 
 const SUPABASE_URL = "https://kfhbrodsgurvrsfpecwq.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmaGJyb2RzZ3VydnJzZnBlY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDk1NDUsImV4cCI6MjA5NjAyNTU0NX0.KPN4fUHzVUyVL4_vkh_zDO6Y-XAwTLi8FPKiln8nJwQ";
@@ -292,9 +293,13 @@ function AgendaView({ events, onEventClick }) {
 }
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
-export default function CalendarPage({ onClose, projects }) {
+export default function CalendarPage({ onClose, projects, currentUser }) {
   const [view, setView] = useState("month");
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [showForm, setShowForm] = useState(false);
+  const [formDate, setFormDate] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedDayEvents, setSelectedDayEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -310,6 +315,16 @@ export default function CalendarPage({ onClose, projects }) {
   const [showServer, setShowServer] = useState(true);
 
   useEffect(() => {
+    loadAll();
+    // Load members and companies for form
+    Promise.all([
+      dbGet("team_members","?order=name.asc&is_active=eq.true"),
+      dbGet("companies","?order=name.asc"),
+    ]).then(([m,c])=>{ setMembers(m||[]); setCompanies(c||[]); }).catch(()=>{});
+  }, []);
+
+  const loadAll = () => {
+    setLoading(true);
     Promise.all([
       dbGet("team_activities", "?order=activity_date.asc"),
       dbGet("training_sessions", "?select=*,projects(name,client)&order=training_date.asc"),
@@ -318,7 +333,19 @@ export default function CalendarPage({ onClose, projects }) {
       setTrainingSessions(trains);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, []);
+  };
+
+  const handleSaveActivity = async (payload, id) => {
+    const H = {...hdrs(),"Content-Type":"application/json","Prefer":"return=representation"};
+    if (id) {
+      await fetch(`${SUPABASE_URL}/rest/v1/team_activities?id=eq.${id}`,{method:"PATCH",headers:H,body:JSON.stringify(payload)});
+    } else {
+      await fetch(`${SUPABASE_URL}/rest/v1/team_activities`,{method:"POST",headers:H,body:JSON.stringify(payload)});
+    }
+    loadAll();
+    setShowForm(false);
+    setFormDate(null);
+  };
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -383,8 +410,14 @@ export default function CalendarPage({ onClose, projects }) {
             <h1 style={{ fontSize:28, fontWeight:900, color:"#f1f5f9", margin:0 }}>🗓 Kalender</h1>
             <div style={{ fontSize:13, color:"#475569", marginTop:4 }}>{upcomingCount} event mendatang · {warningCount} peringatan · {expiredCount} expired</div>
           </div>
-          {/* View switcher */}
-          <div style={{ display:"flex", gap:8 }}>
+          {/* Actions */}
+          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+            <button onClick={()=>{ setFormDate(null); setShowForm(true); }}
+              style={{ padding:"9px 18px", borderRadius:10, border:"none", background:"#1d4ed8", color:"#fff", cursor:"pointer", fontSize:13, fontWeight:700, display:"flex", alignItems:"center", gap:6 }}>
+              + Buat Jadwal
+            </button>
+            {/* View switcher */}
+            <div style={{ display:"flex", gap:8 }}>
             {[["month","📅 Bulan"],["agenda","📋 Agenda"]].map(([v,l])=>(
               <button key={v} onClick={()=>{ setView(v); setSelectedDate(null); }} style={{ padding:"9px 18px", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer", border:`1px solid ${view===v?"#38bdf8":"#1e293b"}`, background:view===v?"#0c4a6e":"#0a1525", color:view===v?"#38bdf8":"#475569" }}>{l}</button>
             ))}
@@ -485,5 +518,17 @@ export default function CalendarPage({ onClose, projects }) {
 
       {selectedEvent && <EventDetailModal event={selectedEvent} onClose={()=>setSelectedEvent(null)} />}
     </div>
+
+      {/* ActivityFormModal */}
+      {showForm && members.length > 0 && (
+        <ActivityFormModal
+          activity={formDate ? { activity_date: formDate } : null}
+          members={members}
+          companies={companies}
+          currentUser={currentUser}
+          onClose={()=>{ setShowForm(false); setFormDate(null); }}
+          onSave={handleSaveActivity}
+        />
+      )}
   );
 }
