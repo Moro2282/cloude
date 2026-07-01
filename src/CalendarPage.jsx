@@ -399,8 +399,8 @@ export default function CalendarPage({ onClose, projects, currentUser }) {
   );
 
   return (
+    <>
     <div style={{ position:"fixed", inset:0, background:"#060d1a", zIndex:2000, overflowY:"auto", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif", color:"#e2e8f0" }}>
-      <style>{`*,*::before,*::after{box-sizing:border-box}::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#0c1628}::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:3px}`}</style>
       <div style={{ maxWidth:1100, margin:"0 auto", padding:"28px 20px" }}>
 
         {/* Header */}
@@ -530,5 +530,6 @@ export default function CalendarPage({ onClose, projects, currentUser }) {
           onSave={handleSaveActivity}
         />
       )}
+    </>
   );
 }
